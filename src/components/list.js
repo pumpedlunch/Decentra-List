@@ -43,18 +43,14 @@ export default function List() {
       );
       const _proxyAddresses = await contract.getAllClones();
       const _proxyTitles = _proxyAddresses.map((address) => {
-        const proxyContract = new ethers.Contract(
-          address,
-          PROXY_ABI,
-          provider
-        );
+        const proxyContract = new ethers.Contract(address, PROXY_ABI, provider);
         return proxyContract.title();
       });
 
       await Promise.all(_proxyTitles).then((_proxyTitles) => {
         console.log(_proxyTitles);
-        setProxyTitles(_proxyTitles)
-      })
+        setProxyTitles(_proxyTitles);
+      });
       setProxyAddresses(_proxyAddresses);
     }
     getProxies();
@@ -64,7 +60,11 @@ export default function List() {
     console.log("changeList");
     const index = proxyTitles.indexOf(e.target.value);
     setCurrentProxy(proxyAddresses[index]);
-    const contract = new ethers.Contract(proxyAddresses[index], PROXY_ABI, provider);
+    const contract = new ethers.Contract(
+      proxyAddresses[index],
+      PROXY_ABI,
+      provider
+    );
     const promises = [];
 
     promises.push(
@@ -126,7 +126,7 @@ export default function List() {
     const createListTx = await contract.createNewDecentralist(
       ethers.utils.hexlify(ethers.utils.toUtf8Bytes(ancillaryArg)),
       titleArg,
-      livenessPeriodArg*60*60,
+      livenessPeriodArg * 60 * 60,
       ethers.utils.parseEther(bondAmountArg),
       ethers.utils.parseEther(addRewardArg),
       ethers.utils.parseEther(removeRewardArg)
@@ -166,7 +166,7 @@ export default function List() {
           {currentProxy}
         </a>
         <p>Number of Addresses on List: {addresses.length}</p>
-        <p>Bond Amount: {bondAmount} WETH wei</p> 
+        <p>Bond Amount: {bondAmount} WETH wei</p>
         <p>Reward / Address Added: {addReward} WETH wei</p>
         <p>Reward / Address Removed: {removeReward} WETH wei</p>
         <p>Oracle Liveness Period: {livenessPeriod} seconds</p>
@@ -178,15 +178,12 @@ export default function List() {
       </div>
       <list>
         {addresses.map((address) => (
-          <ul>{address}</ul>
+          <ul>{address},</ul>
         ))}
       </list>
 
       {/* -------------- ADD/REMOVE ADDRESS ----------------- */}
-      <div className="mt-8">
-        <h1 className="font-bold">
-          TODO: Put TX buttons Into separate Modals... 1 for add... 1 for remove
-        </h1>
+      <div className="mt-8 border border-black">
         <div className="flex">
           <p>Bond Amount: {bondAmount / 10e18} WETH</p>
           <button className="bg-yellow-500" onClick={approveTransfer}>
@@ -207,55 +204,61 @@ export default function List() {
           <button className="bg-red-500" onClick={removeAddress}>
             Remove Address
           </button>
-          {/* -------------- CREATE LIST ----------------- */}
-          <div className="mt-2">
-            <input
-              placeholder="Text..."
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setAncillaryArg(e.target.value);
-              }}
-            ></input>
-            <input
-              placeholder="Text..."
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setTitleArg(e.target.value);
-              }}
-            ></input>
-            <input
-              placeholder="Hours"
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setLivenessPeriodArg(e.target.value);
-              }}
-            ></input>
-            <input
-              placeholder="WETH"
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setBondAmountArg(e.target.value);
-              }}
-            ></input>
-            <input
-              placeholder="WETH"
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setAddRewardArg(e.target.value);
-              }}
-            ></input>
-            <input
-              placeholder="WETH"
-              className="border border-black w-[360px]"
-              onChange={(e) => {
-                setRemoveRewardArg(e.target.value);
-              }}
-            ></input>
-            <button className="bg-green-500" onClick={createList}>
-              Create List
-            </button>
-          </div>
         </div>
+      </div>
+      {/* -------------- CREATE LIST ----------------- */}
+      <div className="mt-8 border border-black">
+        <p>Ancillary Data:</p>
+        <input
+          placeholder="Text..."
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setAncillaryArg(e.target.value);
+          }}
+        ></input>
+        <p>Title:</p>
+        <input
+          placeholder="Text..."
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setTitleArg(e.target.value);
+          }}
+        ></input>
+        <p>Liveness Period:</p>
+        <input
+          placeholder="seconds"
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setLivenessPeriodArg(e.target.value);
+          }}
+        ></input>
+        <p>Bond Amount:</p>
+        <input
+          placeholder="WETH"
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setBondAmountArg(e.target.value);
+          }}
+        ></input>
+        <p>Add Reward:</p>
+        <input
+          placeholder="WETH"
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setAddRewardArg(e.target.value);
+          }}
+        ></input>
+        <p>Remove Reward:</p>
+        <input
+          placeholder="WETH"
+          className="border border-black w-[360px]"
+          onChange={(e) => {
+            setRemoveRewardArg(e.target.value);
+          }}
+        ></input>
+        <button className="bg-green-500" onClick={createList}>
+          Create List
+        </button>
       </div>
     </div>
   );
