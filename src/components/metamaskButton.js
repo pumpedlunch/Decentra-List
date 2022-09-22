@@ -6,7 +6,7 @@ export default function MetaMaskButton() {
 
   useEffect(() => {
     connect();
-    /* checkIfWalletIsConnected(); */
+    checkIfWalletIsConnected();
   }, []);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function MetaMaskButton() {
     setUserAddress(account);
   };
 
-  /* async function checkIfWalletIsConnected() {
+  async function checkIfWalletIsConnected() {
     console.log("checking");
     if (window.ethereum) {
       const accounts = await window.ethereum.request({
@@ -40,7 +40,7 @@ export default function MetaMaskButton() {
         return;
       }
     }
-  } */
+  }
 
   return (
     <>

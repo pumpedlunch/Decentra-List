@@ -1,7 +1,8 @@
 // contracts/GameItem.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.2;
 
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface OptimisticOracleV2Interface {
@@ -46,87 +47,272 @@ interface OptimisticOracleV2Interface {
     ) external;
 }
 
-contract Decentralist {
-
+contract Decentralist is Initializable {
     bytes public fixedAncillaryData;
-    bytes32 public priceId = "YES_OR_NO_QUERY";
     string public title;
-    uint public livenessPeriod;
-    uint public bondAmount;
+    uint256 public livenessPeriod;
+    uint256 public bondAmount;
+    uint256 public addReward;
+    uint256 public removeReward;
     address[] private listArray;
     mapping(address => bool) public listMapping;
-    mapping(bytes => address) public requests;
 
-    OptimisticOracleV2Interface oracle = OptimisticOracleV2Interface(0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884); //Goerli OOv2
-    IERC20 constant WETH = IERC20(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6); //Goerli
+    struct SingleRequest {
+        address pendingAddress;
+        int256 proposedPrice;
+        address proposer;
+    }
+    mapping(bytes => SingleRequest) private singleRequests;
 
-    event PriceProposed(address _address, uint price);
-    event PriceSettled(address _address, uint price);
+    struct MultipleRequest {
+        uint256 pendingAddressesKey;
+        int256 proposedPrice;
+        address proposer;
+    }
+    mapping(bytes => MultipleRequest) private multipleRequests;
+    mapping(uint256 => address[]) private pendingAddresses;
+    uint256 private pendingAddressesCounter;
 
-    constructor(bytes memory _fixedAncillaryData, string memory _title, uint _livenessPeriod, uint _bondAmount) {
+    bytes32 internal constant priceId = "YES_OR_NO_QUERY";
+    OptimisticOracleV2Interface internal constant oracle =
+        OptimisticOracleV2Interface(0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884); //Goerli OOv2
+    IERC20 internal constant WETH = IERC20(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6); //Goerli
+
+    event SinglePriceProposed(address _address, int256 price);
+    event SinglePriceSettled(address _address, int256 price);
+    event MultiplePriceProposed(uint256 pendingAddressesKey, int256 price);
+    event MultiplePriceSettled(uint256 pendingAddressesKey, int256 price);
+
+    function initialize(
+        bytes memory _fixedAncillaryData,
+        string memory _title,
+        uint256 _livenessPeriod,
+        uint256 _bondAmount,
+        uint256 _addReward,
+        uint256 _removeReward
+    ) public initializer {
         fixedAncillaryData = _fixedAncillaryData;
         title = _title;
         livenessPeriod = _livenessPeriod;
         bondAmount = _bondAmount;
+        addReward = _addReward;
+        removeReward = _removeReward;
+        pendingAddressesCounter = 1;
     }
 
-    function addAddress(address _address) public {
+    function addSingleAddress(address _address) public {
         require(!listMapping[_address], "address is already on list");
-        if(bondAmount > 0){
-            bool success = WETH.transferFrom(msg.sender, address(this), bondAmount);
+        if (bondAmount > 0) {
+            bool success = WETH.transferFrom(
+                msg.sender,
+                address(this),
+                bondAmount
+            );
             require(success, "transfer of bond amount to List contract failed");
         }
         //prepare price request data
         string memory _addressString = toAsciiString(_address);
-        bytes memory ancillaryDataFull = bytes.concat(fixedAncillaryData, " Address to Query: ", abi.encodePacked(_addressString));
-        uint currentRequestTime = block.timestamp;
-        //request price from OO
-        oracle.requestPrice(priceId, currentRequestTime, ancillaryDataFull, WETH, 0);
-        oracle.setCallbacks(priceId, currentRequestTime, ancillaryDataFull, false, false, true);
-        oracle.setCustomLiveness(priceId, currentRequestTime, ancillaryDataFull, livenessPeriod);
-        oracle.setBond(priceId, currentRequestTime, ancillaryDataFull, bondAmount);
+        bytes memory ancillaryDataFull = bytes.concat(
+            fixedAncillaryData,
+            ". Address to Query: 0x",
+            abi.encodePacked(_addressString)
+        );
+        uint256 currentRequestTime = block.timestamp;
+
+        requestPriceFlow(currentRequestTime, ancillaryDataFull);
 
         //store request info for future reference
-        requests[bytes.concat(ancillaryDataFull, abi.encodePacked(currentRequestTime))] = _address;
-        
-        if(bondAmount > 0){
+        bytes memory requestData = bytes.concat(
+            ancillaryDataFull,
+            abi.encodePacked(currentRequestTime)
+        );
+        singleRequests[requestData].pendingAddress = _address;
+        singleRequests[requestData].proposedPrice = 1e18;
+        singleRequests[requestData].proposer = msg.sender;
+
+        if (bondAmount > 0) {
             bool success = WETH.approve(address(oracle), bondAmount);
-            require(success, "approval of bond amount from List contract to Oracle failed");
+            require(
+                success,
+                "approval of bond amount from List contract to Oracle failed"
+            );
         }
+        oracle.proposePriceFor(
+            msg.sender,
+            address(this),
+            priceId,
+            currentRequestTime,
+            ancillaryDataFull,
+            1e18
+        );
 
-        //propose price to OO
-        oracle.proposePriceFor(msg.sender, address(this), priceId, currentRequestTime, ancillaryDataFull, 1e18);
-
-        emit PriceProposed(_address, 1e18);
+        emit SinglePriceProposed(_address, 1e18);
     }
 
-    function removeAddress(address _address) public {
-        require(listMapping[_address], "address is not on list");
-        if(bondAmount > 0){
-            bool success = WETH.transferFrom(msg.sender, address(this), bondAmount);
+    function addMultipleAddresses(address[] calldata _addresses) public {
+        for (uint256 i = 0; i <= _addresses.length - 1; i++) {
+            require(
+                !listMapping[_addresses[i]],
+                "at least 1 address is already on list"
+            );
+        }
+        if (bondAmount > 0) {
+            bool success = WETH.transferFrom(
+                msg.sender,
+                address(this),
+                bondAmount
+            );
             require(success, "transfer of bond amount to List contract failed");
         }
         //prepare price request data
-        string memory _addressString = toAsciiString(_address);
-        bytes memory ancillaryDataFull = bytes.concat(fixedAncillaryData, " Address to Query: ", abi.encodePacked(_addressString));
-        uint currentRequestTime = block.timestamp;
-        //request price from OO
-        oracle.requestPrice(priceId, currentRequestTime, ancillaryDataFull, WETH, 0);
-        oracle.setCallbacks(priceId, currentRequestTime, ancillaryDataFull, false, false, true);
-        oracle.setCustomLiveness(priceId, currentRequestTime, ancillaryDataFull, livenessPeriod);
-        oracle.setBond(priceId, currentRequestTime, ancillaryDataFull, bondAmount);
+        bytes memory ancillaryDataFull = bytes.concat(
+            fixedAncillaryData,
+            ". Addresses to query can be found on requester address by calling getPendingAddressesArray with uint argument of ",
+            toUtf8BytesUint(pendingAddressesCounter)
+        );
+        uint256 currentRequestTime = block.timestamp;
+
+        requestPriceFlow(currentRequestTime, ancillaryDataFull);
 
         //store request info for future reference
-        requests[bytes.concat(ancillaryDataFull, abi.encodePacked(currentRequestTime))] = _address;
+        bytes memory requestData = bytes.concat(
+            ancillaryDataFull,
+            abi.encodePacked(currentRequestTime)
+        );
+        multipleRequests[requestData]
+            .pendingAddressesKey = pendingAddressesCounter;
+        multipleRequests[requestData].proposedPrice = 1e18;
+        multipleRequests[requestData].proposer = msg.sender;
+        pendingAddresses[pendingAddressesCounter] = _addresses;
 
-        if(bondAmount > 0){
+        if (bondAmount > 0) {
             bool success = WETH.approve(address(oracle), bondAmount);
-            require(success, "approval of bond amount from List contract to Oracle failed");
+            require(
+                success,
+                "approval of bond amount from List contract to Oracle failed"
+            );
+        }
+        oracle.proposePriceFor(
+            msg.sender,
+            address(this),
+            priceId,
+            currentRequestTime,
+            ancillaryDataFull,
+            1e18
+        );
+
+        emit MultiplePriceProposed(pendingAddressesCounter, 1e18);
+        pendingAddressesCounter++;
+    }
+
+    function removeSingleAddress(address _address) public {
+        require(listMapping[_address], "address is not on list");
+        if (bondAmount > 0) {
+            bool success = WETH.transferFrom(
+                msg.sender,
+                address(this),
+                bondAmount
+            );
+            require(success, "transfer of bond amount to List contract failed");
+        }
+
+        //prepare price request data
+        string memory _addressString = toAsciiString(_address);
+        bytes memory ancillaryDataFull = bytes.concat(
+            fixedAncillaryData,
+            ". Address to Query: 0x",
+            abi.encodePacked(_addressString)
+        );
+        uint256 currentRequestTime = block.timestamp;
+
+        requestPriceFlow(currentRequestTime, ancillaryDataFull);
+
+        //store request info for future reference
+        bytes memory requestData = bytes.concat(
+            ancillaryDataFull,
+            abi.encodePacked(currentRequestTime)
+        );
+
+        singleRequests[requestData].pendingAddress = _address;
+        singleRequests[requestData].proposedPrice = 0;
+        singleRequests[requestData].proposer = msg.sender;
+
+        if (bondAmount > 0) {
+            bool success = WETH.approve(address(oracle), bondAmount);
+            require(
+                success,
+                "approval of bond amount from List contract to Oracle failed"
+            );
         }
 
         //propose price to OO
-        oracle.proposePriceFor(msg.sender, address(this), priceId, currentRequestTime, ancillaryDataFull, 0);
-        emit PriceProposed(_address, 0);  
+        oracle.proposePriceFor(
+            msg.sender,
+            address(this),
+            priceId,
+            currentRequestTime,
+            ancillaryDataFull,
+            0
+        );
+
+        emit SinglePriceProposed(_address, 0);
+    }
+
+    function removeMultipleAddresses(address[] calldata _addresses) public {
+        for (uint256 i = 0; i <= _addresses.length - 1; i++) {
+            require(
+                listMapping[_addresses[i]],
+                "at least 1 address is not on list"
+            );
+        }
+        if (bondAmount > 0) {
+            bool success = WETH.transferFrom(
+                msg.sender,
+                address(this),
+                bondAmount
+            );
+            require(success, "transfer of bond amount to List contract failed");
+        }
+        //prepare price request data
+        bytes memory ancillaryDataFull = bytes.concat(
+            fixedAncillaryData,
+            ". Addresses to query can be found on requester address by calling getPendingAddressesArray with uint argument of ",
+            toUtf8BytesUint(pendingAddressesCounter)
+        );
+        uint256 currentRequestTime = block.timestamp;
+
+        requestPriceFlow(currentRequestTime, ancillaryDataFull);
+
+        //store request info for future reference
+        bytes memory requestData = bytes.concat(
+            ancillaryDataFull,
+            abi.encodePacked(currentRequestTime)
+        );
+        multipleRequests[requestData]
+            .pendingAddressesKey = pendingAddressesCounter;
+        multipleRequests[requestData].proposedPrice = 0;
+        multipleRequests[requestData].proposer = msg.sender;
+        pendingAddresses[pendingAddressesCounter] = _addresses;
+
+        if (bondAmount > 0) {
+            bool success = WETH.approve(address(oracle), bondAmount);
+            require(
+                success,
+                "approval of bond amount from List contract to Oracle failed"
+            );
+        }
+        oracle.proposePriceFor(
+            msg.sender,
+            address(this),
+            priceId,
+            currentRequestTime,
+            ancillaryDataFull,
+            0
+        );
+
+        emit MultiplePriceProposed(pendingAddressesCounter, 0);
+
+        pendingAddressesCounter++;
     }
 
     //externally called settle function will call this when price is settled
@@ -135,61 +321,223 @@ contract Decentralist {
         uint256 timestamp,
         bytes memory ancillaryData,
         int256 price
-    ) external
-    //how to gate this? require msg.sender?
-    {
-        address queriedAddress = requests[bytes.concat(ancillaryData, abi.encode(timestamp))];
-        if(price == 0) {
-            listMapping[queriedAddress] = false;
-            removeIndex(getIndex(queriedAddress));
-            emit PriceSettled(queriedAddress, 0);
-        } else {
-            if(price == 1e18) {
-                listMapping[queriedAddress] = true;
-                listArray.push(queriedAddress);
-                emit PriceSettled(queriedAddress, 1e18);
+    ) external {
+        require(
+            msg.sender == address(oracle),
+            "only oracle can call this function"
+        );
+        bytes memory requestData = bytes.concat(
+            ancillaryData,
+            abi.encodePacked(timestamp)
+        );
+
+        //handle single requests
+        SingleRequest memory request = singleRequests[requestData];
+
+        if (request.pendingAddress != address(0)) {
+            //if proposed price was successfully disputed return
+            if (request.proposedPrice != price) {
+                emit SinglePriceSettled(request.pendingAddress, price);
+                return;
             }
+            if (price == 0) {
+                listMapping[request.pendingAddress] = false;
+                removeIndex(getIndex(request.pendingAddress));
+                if (removeReward > 0) {
+                    WETH.transfer(request.proposer, removeReward);
+                }
+            } else {
+                if (price == 1e18) {
+                    listMapping[request.pendingAddress] = true;
+                    listArray.push(request.pendingAddress);
+                    if (addReward > 0) {
+                        WETH.transfer(request.proposer, addReward);
+                    }
+                }
+            }
+            emit SinglePriceSettled(request.pendingAddress, price);
+            return;
+        } else {
+            //handle multiple requests
+            MultipleRequest memory multipleRequest = multipleRequests[
+                requestData
+            ];
+            if (multipleRequest.pendingAddressesKey != 0) {
+                //if proposed price was successfully disputed return
+                if (multipleRequest.proposedPrice != price) {
+                    emit MultiplePriceSettled(
+                        multipleRequest.pendingAddressesKey,
+                        price
+                    );
+                    return;
+                }
+                if (price == 0) {
+                    for (
+                        uint256 i = 0;
+                        i <= pendingAddresses[multipleRequest.pendingAddressesKey].length - 1; i++) {
+                        address _address = pendingAddresses[
+                            multipleRequest.pendingAddressesKey
+                        ][i];
+                        listMapping[_address] = false;
+                        removeIndex(getIndex(_address));
+                    }
+                    if (removeReward > 0) {
+                        WETH.transfer(
+                            multipleRequest.proposer,
+                            removeReward *
+                                pendingAddresses[
+                                    multipleRequest.pendingAddressesKey
+                                ].length
+                        );
+                    }
+                    emit MultiplePriceSettled(
+                        multipleRequest.pendingAddressesKey,
+                        0
+                    );
+                    return;
+                }
+                if (price == 1e18) {
+                    for (
+                        uint256 i = 0;
+                        i <=
+                        pendingAddresses[multipleRequest.pendingAddressesKey]
+                            .length -
+                            1;
+                        i++
+                    ) {
+                        address _address = pendingAddresses[
+                            multipleRequest.pendingAddressesKey
+                        ][i];
+                        listMapping[_address] = true;
+                        listArray.push(_address);
+                    }
+                    if (addReward > 0) {
+                        WETH.transfer(
+                            multipleRequest.proposer,
+                            addReward *
+                                pendingAddresses[
+                                    multipleRequest.pendingAddressesKey
+                                ].length
+                        );
+                    }
+                    emit MultiplePriceSettled(
+                        multipleRequest.pendingAddressesKey,
+                        1e18
+                    );
+                    return;
+                }
+            }
+            emit MultiplePriceSettled(
+                multipleRequest.pendingAddressesKey,
+                price
+            );
+            return;
         }
-        //update request status?
     }
 
-    function getListArray() public view returns(address[] memory) {
+    function getListArray() public view returns (address[] memory) {
         return listArray;
     }
 
-    function getListLength() public view returns(uint) {
+    function getPendingAddressesArray(uint256 pendingAddressesKey)
+        public
+        view
+        returns (address[] memory)
+    {
+        return pendingAddresses[pendingAddressesKey];
+    }
+
+    function getListLength() public view returns (uint256) {
         return listArray.length;
     }
 
-    function getIndex(address _address) internal view returns (uint i) {
-        for(i = 0; i < listArray.length - 1; i++) {
-            if(listArray[i] == _address) {
+    function getIndex(address _address) internal view returns (uint256 i) {
+        for (i = 0; i < listArray.length - 1; i++) {
+            if (listArray[i] == _address) {
                 return i;
             }
         }
     }
 
-    function removeIndex(uint _index) internal {
-        for (uint i = _index; i < listArray.length - 1; i++) {
+    function removeIndex(uint256 _index) internal {
+        for (uint256 i = _index; i < listArray.length - 1; i++) {
             listArray[i] = listArray[i + 1];
         }
         listArray.pop();
     }
 
+    function requestPriceFlow(
+        uint256 _currentRequestTime,
+        bytes memory _ancillaryDataFull
+    ) internal {
+        oracle.requestPrice(
+            priceId,
+            _currentRequestTime,
+            _ancillaryDataFull,
+            WETH,
+            0
+        );
+        oracle.setCallbacks(
+            priceId,
+            _currentRequestTime,
+            _ancillaryDataFull,
+            false,
+            false,
+            true
+        );
+        oracle.setCustomLiveness(
+            priceId,
+            _currentRequestTime,
+            _ancillaryDataFull,
+            livenessPeriod
+        );
+        oracle.setBond(
+            priceId,
+            _currentRequestTime,
+            _ancillaryDataFull,
+            bondAmount
+        );
+    }
+
+    //for formatting ancillary data. from: https://stackoverflow.com/a/65707309
     function toAsciiString(address x) internal pure returns (string memory) {
         bytes memory s = new bytes(40);
-        for (uint i = 0; i < 20; i++) {
-            bytes1 b = bytes1(uint8(uint(uint160(x)) / (2**(8*(19 - i)))));
+        for (uint256 i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint256(uint160(x)) / (2**(8 * (19 - i)))));
             bytes1 hi = bytes1(uint8(b) / 16);
             bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
-            s[2*i] = char(hi);
-            s[2*i+1] = char(lo);            
+            s[2 * i] = char(hi);
+            s[2 * i + 1] = char(lo);
+        }
+        return string(s);
     }
-    return string(s);
-}
 
+    //for formatting ancillary data. from: https://stackoverflow.com/a/65707309
     function char(bytes1 b) internal pure returns (bytes1 c) {
         if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
         else return bytes1(uint8(b) + 0x57);
+    }
+
+    //for formatting ancillary data. from: https://github.com/UMAprotocol/protocol/blob/master/packages/core/contracts/common/implementation/AncillaryData.sol
+    function toUtf8BytesUint(uint256 x) internal pure returns (bytes memory) {
+        if (x == 0) {
+            return "0";
+        }
+        uint256 j = x;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len;
+        while (x != 0) {
+            k = k - 1;
+            uint8 temp = (48 + uint8(x - (x / 10) * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            x /= 10;
+        }
+        return bstr;
     }
 }

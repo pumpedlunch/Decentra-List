@@ -13,18 +13,19 @@ const BONDAMOUNT =1000; */
 
 async function main() {
   const Decentralist = await hre.ethers.getContractFactory("Decentralist");
-  const decentralist = await Decentralist.deploy();
-  await decentralist.deployed();
+  const decentralist = await Decentralist.deploy(
+    "0x4469642074686520616464726573732062656c6f7720706172746963697061746520696e2041206861636b206261736564206f6e20422063726974657269613f2031203d207965732c2030203d206e6f", 
+    "A Hackers", 
+    60, 
+    500)
 
-  const DecentralistProxyFactory = await hre.ethers.getContractFactory("DecentralistProxyFactory");
-  const dpf = await DecentralistProxyFactory.deploy(decentralist.address);
-  await dpf.deployed();
+  await decentralist.deployed();
 
   console.log(
     `Decentralist deployed to ${decentralist.address}`
   );
   console.log(
-    `Proxy Factory deployed to ${dpf.address}`
+    decentralist
   );
 }
 
