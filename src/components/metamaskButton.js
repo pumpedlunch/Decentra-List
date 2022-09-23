@@ -45,10 +45,16 @@ export default function MetaMaskButton() {
   return (
     <>
       {userAddress ? (
-        <div className="bg-green-500">Connected: {userAddress}</div>
+        <div className="flex flex-col items-center text-xl justify-center">
+        <button className="bg-[#ace4aa] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right">
+          Connected
+          <p className="text-sm font-bold truncate max-w-[150px] ">{userAddress}</p>
+        </button>
+        </div>
+        
       ) : (
-        <button className="bg-red-500" onClick={() => connect()}>
-          Connect to MetaMask
+        <button className="bg-[#abdbe3] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right" onClick={() => connect()}>
+          Connect
         </button>
       )}
     </>
