@@ -6,7 +6,7 @@ import ListModal from "./listModal";
 
 import LOGO from "./decentralist.png";
 const PROXY_ABI =
-  require("../artifacts/contracts/decentralist.sol/Decentralist.json").abi;
+  require("../artifacts/contracts/Decentralist.sol/Decentralist.json").abi;
 const FACTORY_ABI =
   require("../artifacts/contracts/DecentralistProxyFactory.sol/DecentralistProxyFactory.json").abi;
 const WETH_ABI = require("../public/WETH_ABI.json");
