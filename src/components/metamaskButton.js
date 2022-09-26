@@ -5,7 +5,6 @@ export default function MetaMaskButton() {
   const [userAddress, setUserAddress] = useState("");
 
   useEffect(() => {
-    connect();
     checkIfWalletIsConnected();
   }, []);
 
@@ -25,6 +24,12 @@ export default function MetaMaskButton() {
     });
 
     setUserAddress(account);
+
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    console.log(chainId);
+    if (chainId !== '0x5'){
+      alert("Please switch network to Goerli");
+    }
   };
 
   async function checkIfWalletIsConnected() {
@@ -33,6 +38,10 @@ export default function MetaMaskButton() {
       const accounts = await window.ethereum.request({
         method: "eth_accounts",
       });
+      const chainId = await window.ethereum.request({ method: "eth_chainId" });
+      if (chainId !== '0x5'){
+        alert("Please switch network to Goerli");
+      }
 
       if (accounts.length > 0) {
         const account = accounts[0];
@@ -46,14 +55,18 @@ export default function MetaMaskButton() {
     <>
       {userAddress ? (
         <div className="flex flex-col items-center text-xl justify-center">
-        <button className="bg-[#ace4aa] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right">
-          Connected
-          <p className="text-sm font-bold truncate max-w-[150px] ">{userAddress}</p>
-        </button>
+          <button className="bg-[#ace4aa] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right">
+            Connected
+            <p className="text-sm font-bold truncate max-w-[150px] ">
+              {userAddress}
+            </p>
+          </button>
         </div>
-        
       ) : (
-        <button className="bg-[#abdbe3] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right" onClick={() => connect()}>
+        <button
+          className="bg-[#abdbe3] p-2 mt-2 rounded-md w-32 text-sm font-bold text-center float-right"
+          onClick={() => connect()}
+        >
           Connect
         </button>
       )}

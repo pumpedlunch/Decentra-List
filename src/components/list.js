@@ -102,12 +102,6 @@ export default function List() {
   const handleSubmitList = (event) => {
     event.preventDefault();
     createList();
-    console.log("ancillaryArg", ancillaryArg);
-    console.log("titleArg", titleArg);
-    console.log("livenessPeriodArg", livenessPeriodArg);
-    console.log("bondAmountArg", bondAmountArg);
-    console.log("addRewardArg", addRewardArg);
-    console.log("removeRewardArg", removeRewardArg);
     closeListModal();
   };
 
@@ -134,7 +128,6 @@ export default function List() {
       });
 
       await Promise.all(_proxyTitles).then((_proxyTitles) => {
-        console.log(_proxyTitles);
         setProxyTitles(_proxyTitles);
       });
       setProxyAddresses(_proxyAddresses);
@@ -164,7 +157,6 @@ export default function List() {
     );
 
     await Promise.all(promises).then((values) => {
-      console.log(values[0]);
       setAddresses(values[0]);
       setTitle(values[1]);
       setBondAmount(values[2].toNumber());
@@ -202,8 +194,6 @@ export default function List() {
   };
 
   const approveTransfer = async () => {
-    console.log(bondAmount);
-    console.log(typeof bondAmount);
     const contract = await prepareContract(WETH_ADDRESS, WETH_ABI);
     const approveTx = await contract.approve(currentProxy, bondAmount);
   };
