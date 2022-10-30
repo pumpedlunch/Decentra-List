@@ -6,25 +6,36 @@
 // global scope, and execute the script.
 const hre = require("hardhat");
 
-/* const FIXEDANCILLARYDATA = "0x4469642074686520616464726573732062656c6f7720706172746963697061746520696e2058206861636b206261736564206f6e20592063726974657269613f2031203d207965732c2030203d206e6f";
+const FIXEDANCILLARYDATA = "0x4469642074686520616464726573732062656c6f7720706172746963697061746520696e2058206861636b206261736564206f6e20592063726974657269613f2031203d207965732c2030203d206e6f";
 const TITLE = "X Hackers";
 const LIVENESSPERIOD = 30;
-const BONDAMOUNT =1000; */
+const BONDAMOUNT =1000;
+const REWARD = 500;
 
 async function main() {
   const Decentralist = await hre.ethers.getContractFactory("Decentralist");
   const decentralist = await Decentralist.deploy();
   await decentralist.deployed();
 
+  console.log(
+    `Decentralist deployed to ${decentralist.address}`
+  );
+
   const DecentralistProxyFactory = await hre.ethers.getContractFactory("DecentralistProxyFactory");
   const dpf = await DecentralistProxyFactory.deploy(decentralist.address);
   await dpf.deployed();
 
   console.log(
-    `Decentralist deployed to ${decentralist.address}`
+    `Proxy Factory deployed to ${dpf.address}`
+  );
+
+  const listAddress = await dpf.createNewDecentralist(FIXEDANCILLARYDATA, TITLE, LIVENESSPERIOD, BONDAMOUNT, REWARD, REWARD);
+
+  console.log(
+    `New List deployed to:`
   );
   console.log(
-    `Proxy Factory deployed to ${dpf.address}`
+    listAddress
   );
 }
 
