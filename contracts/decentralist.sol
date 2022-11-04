@@ -10,14 +10,20 @@ import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
 contract Decentralist is Initializable, Ownable {
 
-    event ProposedAddition(uint256 indexed pendingAddressesIndex, address indexed proposer);
-    event ProposedRemoval(uint256 indexed pendingAddressesIndex, address indexed proposer);
+    // DONE: REMOVE pendingAddressesIndex, include ADDRESS ARRAY, HASH OF ARRAY AND PROPOSER -----------------------
 
-    event RejectedAddition(uint256 indexed pendingAddressesIndex, address indexed proposer);
-    event RejectedRemoval(uint256 indexed pendingAddressesIndex, address indexed proposer);
+    event ProposedAddition(uint indexed requestId, bytes32 indexed addressesHash, address[] pendingAddresses);
+    event ProposedRemoval(uint indexed requestId, bytes32 indexed addressesHash, address[] pendingAddresses);
 
-    event SuccessfulAddition(uint256 indexed pendingAddressesIndex, address indexed proposer);
-    event SuccessfulRemoval(uint256 indexed pendingAddressesIndex, address indexed proposer);
+    // DONE: REMOVE pendingAddressesIndex, include HASH OF ARRAY AND PROPOSER -----------------------
+
+    event ApprovedAddition(uint indexed requestId);
+    event ApprovedRemoval(uint indexed requestId);
+
+    // DONE: REMOVE pendingAddressesIndex, include HASH OF ARRAY AND PROPOSER -----------------------
+
+    event RejectedAddition(uint indexed requestId);
+    event RejectedRemoval(uint indexed requestId);
 
     OptimisticOracleV2Interface internal constant oracle =
         OptimisticOracleV2Interface(0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884); //Goerli OOv2
@@ -29,24 +35,37 @@ contract Decentralist is Initializable, Ownable {
     uint256 public liveness;
     uint256 public addReward;
     uint256 public removeReward;
-    uint256 private pendingAddressesCounter;
+    // DONE: delete pendingAddressesCounter -----------------------
+    uint requestCounter;
     string public title;
     bytes public fixedAncillaryData;
 
     int256 internal constant PROPOSAL_YES_RESPONSE= int256(1e18);
     bytes32 internal constant PRICE_ID = "YES_OR_NO_QUERY";
 
-    struct Request {
-        uint256 pendingAddressesIndex;
-        int256 proposedPrice;
-        address proposer;
+    enum Status {
+        Pending,
+        Approved,
+        Rejected
     }
 
-    // This maps hashed oracle price request data to Request in storage
-    mapping(bytes => Request) private requests;
-    // This maps the pendingAddressesIndex to an array of addresses proposed for addition or removal
-    mapping(uint256 => address[]) private pendingAddresses;
-    // This maps stores which addresses are on the list  
+    // DONE: REPLACE pending AdressesIndex with hash of addresses -----------------------
+    struct Request {
+        address proposer;
+        bytes32 addressHash;
+        int256 proposedPrice;
+        uint256 addressesCount;      
+        Status status;
+    }
+
+    // maps oracleRequestId to requestId
+    mapping(bytes => uint) private requestIds;
+    // maps requestId to Request 
+    mapping(uint => Request) public requests;
+
+    // DONE: delete pendingAddresses -----------------------
+
+    // mapping stores which addresses are on the list  
     mapping(address => bool) public onList;
 
     /* 
@@ -68,8 +87,8 @@ contract Decentralist is Initializable, Ownable {
         uint256 _removeReward,
         address _owner
     ) public initializer {
-        require(liveness > 8 hours, "liveness must be 8 hours or greater");
-        require(bondAmount > 1500 * 10e6, "bond must be 1500 USDC or greater");
+        require(_liveness > 8 hours, "liveness must be 8 hours or greater");
+        require(_bondAmount > 1500 * 10e6, "bond must be 1500 USDC or greater");
 
         fixedAncillaryData = _fixedAncillaryData;
         title = _title;
@@ -77,7 +96,7 @@ contract Decentralist is Initializable, Ownable {
         bondAmount = _bondAmount;
         addReward = _addReward;
         removeReward = _removeReward;
-        pendingAddressesCounter = 1;
+        requestCounter = 1;
         transferOwnership(_owner);        
     }
 
@@ -99,34 +118,46 @@ contract Decentralist is Initializable, Ownable {
                 );
             }
         }
-        // transfer bondAmount from proposer to contract for forwarding to Oracle
-        if (bondAmount > 0) {
-            bool success = USDC.transferFrom(
-                msg.sender,
-                address(this),
-                bondAmount
-            );
-            require(success, "transfer of bond amount to List contract failed");
-        }
+        
         // prepare price request data
+        // DONE: adjust ancillary data creation for event. Here AND in removeAddresses -----------------------
+        // TO DO, combine ancillary data in the initializer, just append requestID to ancillary data here so that the oracle request ID is differentiated by more than timestamp. Do for all instances
         bytes memory ancillaryDataFull = bytes.concat(
             fixedAncillaryData,
-            ". Addresses to query can be found on requester address by calling getPendingAddressesArray with uint argument of ",
-            AncillaryData.toUtf8BytesUint(pendingAddressesCounter)
+            // TO DO: is there a better way to describe the below?
+            ". Addresses to query can be found in the pendingAddresses parameter of the ProposedAddition event emitted by the requester's address in the same transaction as the proposed price."
         );
         uint256 currentRequestTime = block.timestamp;
 
         uint256 totalBond = requestPriceFlow(currentRequestTime, ancillaryDataFull);
 
-        // store request info and pending addresses for future reference
-        bytes memory requestData = bytes.concat(
+        bytes memory oracleRequestId = bytes.concat(
             ancillaryDataFull,
             abi.encodePacked(currentRequestTime)
         );
-        requests[requestData].pendingAddressesIndex = pendingAddressesCounter;
-        requests[requestData].proposedPrice = PROPOSAL_YES_RESPONSE;
-        requests[requestData].proposer = msg.sender;
-        pendingAddresses[pendingAddressesCounter] = _addresses;
+
+        bytes32 addressHash = keccak256(abi.encodePacked(_addresses));
+
+        // map oracleRequestId to the current requestCounter
+        requestIds[oracleRequestId] = requestCounter;
+
+        // store request data under the addressHash
+        requests[requestCounter].proposer = msg.sender;
+        requests[requestCounter].addressHash = addressHash;
+        requests[requestCounter].proposedPrice = PROPOSAL_YES_RESPONSE;
+        requests[requestCounter].addressesCount = _addresses.length;
+        
+
+        // transfer totalBond from proposer to contract for forwarding to Oracle
+        //TO DO: adjust front end approval to be for totalBond
+        if (totalBond > 0) {
+            bool success = USDC.transferFrom(
+                msg.sender,
+                address(this),
+                totalBond
+            );
+            require(success, "transfer of bond amount to List contract failed");
+        }
 
         // approve oracle to transfer total bond amount from list contract
         if (totalBond > 0) {
@@ -147,8 +178,8 @@ contract Decentralist is Initializable, Ownable {
             PROPOSAL_YES_RESPONSE
         );
 
-        emit ProposedAddition(pendingAddressesCounter, msg.sender);
-        pendingAddressesCounter++;
+        emit ProposedAddition(requestCounter, addressHash, _addresses);
+        requestCounter++;
     }
 
     /* 
@@ -170,34 +201,42 @@ contract Decentralist is Initializable, Ownable {
             }
         }
 
-        // transfer bondAmount from proposer to contract for forwarding to Oracle
-        if (bondAmount > 0) {
-            bool success = USDC.transferFrom(
-                msg.sender,
-                address(this),
-                bondAmount
-            );
-            require(success, "transfer of bond amount to List contract failed");
-        }
         //prepare price request data
         bytes memory ancillaryDataFull = bytes.concat(
             fixedAncillaryData,
-            ". Addresses to query can be found on requester address by calling getPendingAddressesArray with uint argument of ",
-            AncillaryData.toUtf8BytesUint(pendingAddressesCounter)
+            // TO DO: is there a better way to describe the below?
+            ". Addresses to query can be found in the pendingAddresses parameter of the ProposedAddition event emitted by the requester's address in the same transaction as the proposed price."
         );
         uint256 currentRequestTime = block.timestamp;
 
         uint256 totalBond = requestPriceFlow(currentRequestTime, ancillaryDataFull);
 
-        // store request info and pending addresses for future reference
-        bytes memory requestData = bytes.concat(
+        // TO DO: change this to keccak hash, not concat in all instances
+        bytes memory oracleRequestId = bytes.concat(
             ancillaryDataFull,
             abi.encodePacked(currentRequestTime)
         );
-        requests[requestData].pendingAddressesIndex = pendingAddressesCounter;
-        requests[requestData].proposedPrice = 0;
-        requests[requestData].proposer = msg.sender;
-        pendingAddresses[pendingAddressesCounter] = _addresses;
+
+        bytes32 addressHash = keccak256(abi.encodePacked(_addresses));
+
+        // map oracleRequestId to the current requestCounter
+        requestIds[oracleRequestId] = requestCounter;
+
+        // store request data under the addressHash
+        requests[requestCounter].proposer = msg.sender;
+        requests[requestCounter].addressHash = addressHash;
+        requests[requestCounter].proposedPrice = 0;
+        requests[requestCounter].addressesCount = _addresses.length;
+        
+        // transfer bondAmount from proposer to contract for forwarding to Oracle
+        if (totalBond > 0) {
+            bool success = USDC.transferFrom(
+                msg.sender,
+                address(this),
+                totalBond
+            );
+            require(success, "transfer of bond amount to List contract failed");
+        }
 
         // approve oracle to transfer total bond amount from list contract
         if (totalBond > 0) {
@@ -218,8 +257,8 @@ contract Decentralist is Initializable, Ownable {
             0
         );
 
-        emit ProposedRemoval(pendingAddressesCounter, msg.sender);
-        pendingAddressesCounter++;
+        emit ProposedRemoval(requestCounter, addressHash, _addresses);
+        requestCounter++;
     }
 
     /* 
@@ -236,46 +275,39 @@ contract Decentralist is Initializable, Ownable {
         bytes memory ancillaryData,
         int256 price
     ) external {
+        //TO DO: REMOVE COMMENTED OUT PORTION BELOW AFTER TESTING
         // restrict function access to oracle
         /*  require(
             msg.sender == address(oracle),
             "only oracle can call this function"
         ); */
-        bytes memory requestData = bytes.concat(
+        bytes memory oracleRequestId = bytes.concat(
             ancillaryData,
             abi.encodePacked(timestamp)
         );
 
         // make memory copy of current request for reference
-        Request memory currentRequest = requests[requestData];
+        uint _requestId = requestIds[oracleRequestId];
+        Request memory currentRequest = requests[_requestId];
 
         // handle proposed address removals
         if (currentRequest.proposedPrice == 0) {
             // handle rejections
             if (price != 0) {
+                currentRequest.status = Status.Rejected;
                 emit RejectedRemoval(
-                    currentRequest.pendingAddressesIndex,
-                    currentRequest.proposer
+                    _requestId
                 );
                 return;
             }
             // handle successful removals
-            if(price = 0) {
-                // remove addresses from list
-                for (
-                    uint256 i = 0;
-                    i <=
-                    pendingAddresses[currentRequest.pendingAddressesIndex].length - 1;
-                    i++
-                ) {
-                    onList[pendingAddresses[
-                        currentRequest.pendingAddressesIndex
-                    ][i]] = false;
-                }
+            if(price == 0) {
+                // DONE: CHANGE TO MARK ADDRESS ARRAY HASH AS VALID FOR INCLUSION ------------
+                currentRequest.status = Status.Approved;
                 // pay removal rewards to proposer
                 if (removeReward > 0) {
                     uint256 reward = removeReward *
-                        pendingAddresses[currentRequest.pendingAddressesIndex].length;
+                        currentRequest.addressesCount;
                     if (USDC.balanceOf(address(this)) < reward) {
                         USDC.transfer(
                             currentRequest.proposer,
@@ -288,9 +320,8 @@ contract Decentralist is Initializable, Ownable {
                         );
                     }
                 }
-                emit SuccessfulRemoval(
-                    currentRequest.pendingAddressesIndex,
-                    currentRequest.proposer
+                emit ApprovedRemoval(
+                    _requestId
                 );
                 return;
             }
@@ -299,29 +330,20 @@ contract Decentralist is Initializable, Ownable {
         if (currentRequest.proposedPrice == PROPOSAL_YES_RESPONSE) {
             // handle rejections
             if (price != PROPOSAL_YES_RESPONSE) {
+                currentRequest.status = Status.Rejected;
                 emit RejectedAddition(
-                    currentRequest.pendingAddressesIndex,
-                    currentRequest.proposer
+                    _requestId
                 );
                 return;
             }
             //handle successful additions
-            if(price = PROPOSAL_YES_RESPONSE) {
-                // add addresses to list
-                for (
-                    uint256 i = 0;
-                    i <=
-                    pendingAddresses[currentRequest.pendingAddressesIndex].length - 1;
-                    i++
-                ) {
-                    onList[pendingAddresses[
-                        currentRequest.pendingAddressesIndex
-                    ][i]] = true;
-                }
+            if(price == PROPOSAL_YES_RESPONSE) {
+                // DONE: CHANGE TO MARK ADDRESS ARRAY HASH AS VALID FOR INCLUSION ------------
+                currentRequest.status = Status.Approved;
                 // pay add rewards to proposer
                 if (addReward > 0) {
                     uint256 reward = addReward *
-                        pendingAddresses[currentRequest.pendingAddressesIndex].length;
+                        currentRequest.addressesCount;
                     if (USDC.balanceOf(address(this)) < reward) {
                         USDC.transfer(
                             currentRequest.proposer,
@@ -334,25 +356,31 @@ contract Decentralist is Initializable, Ownable {
                         );
                     }
                 }
-                emit SuccessfulAddition(
-                    currentRequest.pendingAddressesIndex,
-                    currentRequest.proposer
+                emit ApprovedAddition(
+                    _requestId
                 );
             }
         }
     }
 
-    /*
-    * @notice Returns array of pending addresses for potential disputer verification
-    * @param pendingAddressesIndex Index for lookup. This can be found in the oracle ancillary data.
-    */
-    function getPendingAddressesArray(uint256 pendingAddressesIndex)
-        external
-        view
-        returns (address[] memory)
-    {
-        return pendingAddresses[pendingAddressesIndex];
+    // TO DO: ADD FUNCTION FOR ACTING OUT APPROVED ADDRESS ARRAY HASHES ------------
+    function executeApprovedRequests(bytes32 addressesHash, address[] calldata _addresses) external {
+
     }
+                /* example code for removing address from mapping
+                    for (
+                    uint256 i = 0;
+                    i <=
+                    pendingAddresses[currentRequest.pendingAddressesIndex].length - 1;
+                    i++
+                ) {
+                    onList[pendingAddresses[
+                        currentRequest.pendingAddressesIndex
+                    ][i]] = false;
+                } */
+
+
+    // DONE: DELETE getPendingAddressesArray ------------
 
     /*
     * @notice Allows owner to withdraw funds from the contract. 
