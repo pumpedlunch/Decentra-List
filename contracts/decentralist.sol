@@ -27,8 +27,8 @@ contract Decentralist is Initializable, Ownable {
 
     OptimisticOracleV2Interface internal constant oracle =
         OptimisticOracleV2Interface(0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884); //Goerli OOv2
-    IERC20 internal constant USDC =
-        IERC20(0x07865c6E87B9F70255377e024ace6630C1Eaa37F); //Goerli
+    IERC20 internal constant WETH =
+        IERC20(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6); //Goerli
  
     // Extra bond in addition to the final fee for the collateral type.
     uint256 public bondAmount;
@@ -88,7 +88,7 @@ contract Decentralist is Initializable, Ownable {
         address _owner
     ) public initializer {
         require(_liveness > 8 hours, "liveness must be 8 hours or greater");
-        require(_bondAmount > 1500 * 10e6, "bond must be 1500 USDC or greater");
+        require(_bondAmount > 1500 * 10e6, "bond must be 1500 WETH or greater");
 
         fixedAncillaryData = _fixedAncillaryData;
         title = _title;
@@ -151,7 +151,7 @@ contract Decentralist is Initializable, Ownable {
         // transfer totalBond from proposer to contract for forwarding to Oracle
         //TO DO: adjust front end approval to be for totalBond
         if (totalBond > 0) {
-            bool success = USDC.transferFrom(
+            bool success = WETH.transferFrom(
                 msg.sender,
                 address(this),
                 totalBond
@@ -161,7 +161,7 @@ contract Decentralist is Initializable, Ownable {
 
         // approve oracle to transfer total bond amount from list contract
         if (totalBond > 0) {
-            bool success = USDC.approve(address(oracle), totalBond);
+            bool success = WETH.approve(address(oracle), totalBond);
             require(
                 success,
                 "approval of bond amount from List contract to Oracle failed"
@@ -230,7 +230,7 @@ contract Decentralist is Initializable, Ownable {
         
         // transfer bondAmount from proposer to contract for forwarding to Oracle
         if (totalBond > 0) {
-            bool success = USDC.transferFrom(
+            bool success = WETH.transferFrom(
                 msg.sender,
                 address(this),
                 totalBond
@@ -240,7 +240,7 @@ contract Decentralist is Initializable, Ownable {
 
         // approve oracle to transfer total bond amount from list contract
         if (totalBond > 0) {
-            bool success = USDC.approve(address(oracle), totalBond);
+            bool success = WETH.approve(address(oracle), totalBond);
             require(
                 success,
                 "approval of bond amount from List contract to Oracle failed"
@@ -308,13 +308,13 @@ contract Decentralist is Initializable, Ownable {
                 if (removeReward > 0) {
                     uint256 reward = removeReward *
                         currentRequest.addressesCount;
-                    if (USDC.balanceOf(address(this)) < reward) {
-                        USDC.transfer(
+                    if (WETH.balanceOf(address(this)) < reward) {
+                        WETH.transfer(
                             currentRequest.proposer,
-                            USDC.balanceOf(address(this))
+                            WETH.balanceOf(address(this))
                         );
                     } else {
-                        USDC.transfer(
+                        WETH.transfer(
                             currentRequest.proposer,
                             reward
                         );
@@ -344,13 +344,13 @@ contract Decentralist is Initializable, Ownable {
                 if (addReward > 0) {
                     uint256 reward = addReward *
                         currentRequest.addressesCount;
-                    if (USDC.balanceOf(address(this)) < reward) {
-                        USDC.transfer(
+                    if (WETH.balanceOf(address(this)) < reward) {
+                        WETH.transfer(
                             currentRequest.proposer,
-                            USDC.balanceOf(address(this))
+                            WETH.balanceOf(address(this))
                         );
                     } else {
-                        USDC.transfer(
+                        WETH.transfer(
                             currentRequest.proposer,
                             reward
                         );
@@ -388,7 +388,7 @@ contract Decentralist is Initializable, Ownable {
     * @param amount to send
     */
     function withdraw(address recipient, uint256 amount) external onlyOwner {
-        USDC.transfer(recipient, amount);
+        WETH.transfer(recipient, amount);
     }
 
     /*
@@ -414,7 +414,7 @@ contract Decentralist is Initializable, Ownable {
             PRICE_ID,
             _currentRequestTime,
             _ancillaryDataFull,
-            USDC,
+            WETH,
             0
         );
         oracle.setCallbacks(
