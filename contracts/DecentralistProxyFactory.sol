@@ -20,20 +20,23 @@ contract DecentralistProxyFactory {
         uint256 _livenessPeriod,
         uint256 _bondAmount,
         uint256 _addReward,
-        uint256 _removeReward
+        uint256 _removeReward,
+        address _owner
     ) external returns (address instance) {
         instance = Clones.clone(implementationContract);
         (bool success, ) = instance.call(
             abi.encodeWithSignature(
-                "initialize(bytes,string,uint256,uint256,uint256,uint256)",
+                "initialize(bytes,string,uint256,uint256,uint256,uint256,address)",
                 _fixedAncillaryData,
 				_title,
 				_livenessPeriod,
 				_bondAmount,
 				_addReward,
-				_removeReward
+				_removeReward,
+                _owner
             )
         );
+        require(success, "instance.call failed");
         allClones.push(instance);
         emit NewClone(instance);
         return instance;

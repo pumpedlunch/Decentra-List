@@ -9,7 +9,7 @@ import "@uma/core/contracts/common/implementation/AncillaryData.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
 contract Decentralist is Initializable, Ownable {
-
+    // TO DO: make contract work with all uma approved tokens
     // DONE: REMOVE pendingAddressesIndex, include ADDRESS ARRAY, HASH OF ARRAY AND PROPOSER -----------------------
 
     event ProposedAddition(uint indexed requestId, bytes32 indexed addressesHash, address[] pendingAddresses);
@@ -35,7 +35,6 @@ contract Decentralist is Initializable, Ownable {
     uint256 public liveness;
     uint256 public addReward;
     uint256 public removeReward;
-    // DONE: delete pendingAddressesCounter -----------------------
     uint requestCounter;
     string public title;
     bytes public fixedAncillaryData;
@@ -46,20 +45,21 @@ contract Decentralist is Initializable, Ownable {
     enum Status {
         Pending,
         Approved,
-        Rejected
+        Rejected,
+        Executed
     }
 
     // DONE: REPLACE pending AdressesIndex with hash of addresses -----------------------
     struct Request {
         address proposer;
-        bytes32 addressHash;
+        bytes32 addressesHash;
         int256 proposedPrice;
         uint256 addressesCount;      
         Status status;
     }
 
-    // maps oracleRequestId to requestId
-    mapping(bytes => uint) private requestIds;
+    // maps oracleRequestHash to requestId
+    mapping(bytes32 => uint) private requestIds;
     // maps requestId to Request 
     mapping(uint => Request) public requests;
 
@@ -79,7 +79,7 @@ contract Decentralist is Initializable, Ownable {
     * @param _owner Owner of contract can remove funds from contract and adjust reward rates
     */
     function initialize(
-        bytes memory _fixedAncillaryData,
+        bytes memory listCriteria,
         string memory _title,
         uint256 _liveness,
         uint256 _bondAmount,
@@ -87,17 +87,24 @@ contract Decentralist is Initializable, Ownable {
         uint256 _removeReward,
         address _owner
     ) public initializer {
-        require(_liveness > 8 hours, "liveness must be 8 hours or greater");
-        require(_bondAmount > 1500 * 10e6, "bond must be 1500 WETH or greater");
+        //TO DO: remove after testing
+        /* require(_liveness > 8 hours, "liveness must be 8 hours or greater");
+        require(_bondAmount > 1500 * 10e6, "bond must be 1500 WETH or greater"); */
 
-        fixedAncillaryData = _fixedAncillaryData;
+        fixedAncillaryData = bytes.concat(listCriteria,
+            // TO DO: is there a better way to describe the below?
+            ". Addresses to query can be found in the pendingAddresses parameter of the ProposedAddition event emitted by the requester's address in the same transaction as the proposed price."
+        );
+
+
         title = _title;
         liveness = _liveness;
         bondAmount = _bondAmount;
         addReward = _addReward;
         removeReward = _removeReward;
         requestCounter = 1;
-        transferOwnership(_owner);        
+        // TO DO: resolve after testing
+        /* transferOwnership(_owner);  */       
     }
 
     /* 
@@ -106,11 +113,13 @@ contract Decentralist is Initializable, Ownable {
     */
     function addAddresses(address[] calldata _addresses) public {
         // revert if any addresses are already on the list or list contains duplicates
+        // TO DO: MOVE THIS TO SETTLE? OR CAP ARRAY LENGTH
         for (uint256 i = 0; i <= _addresses.length - 1; i++) {
             require(
                 !onList[_addresses[i]],
                 "at least 1 address is already on list"
             );
+            // TO DO: MOVE THIS TO SETTLE? OR CAP ARRAY LENGTH
             for (uint256 j = i + 1; j <= _addresses.length - 1; j++) {
                 require(
                     _addresses[i] != _addresses[j],
@@ -121,35 +130,30 @@ contract Decentralist is Initializable, Ownable {
         
         // prepare price request data
         // DONE: adjust ancillary data creation for event. Here AND in removeAddresses -----------------------
-        // TO DO, combine ancillary data in the initializer, just append requestID to ancillary data here so that the oracle request ID is differentiated by more than timestamp. Do for all instances
-        bytes memory ancillaryDataFull = bytes.concat(
-            fixedAncillaryData,
-            // TO DO: is there a better way to describe the below?
-            ". Addresses to query can be found in the pendingAddresses parameter of the ProposedAddition event emitted by the requester's address in the same transaction as the proposed price."
+        // DONE: combine ancillary data in the initializer, just append requestID to ancillary data here so that the oracle request ID is differentiated by more than timestamp. Do for all instances
+        bytes memory ancillaryData = bytes.concat(
+            fixedAncillaryData, " Request ID = ", AncillaryData.toUtf8BytesUint(requestCounter) 
         );
+        
         uint256 currentRequestTime = block.timestamp;
 
-        uint256 totalBond = requestPriceFlow(currentRequestTime, ancillaryDataFull);
+        uint256 totalBond = assertPriceFlow(currentRequestTime, ancillaryData);
 
-        bytes memory oracleRequestId = bytes.concat(
-            ancillaryDataFull,
-            abi.encodePacked(currentRequestTime)
-        );
+        bytes32 oracleRequestHash = keccak256(abi.encodePacked(ancillaryData, currentRequestTime));
 
-        bytes32 addressHash = keccak256(abi.encodePacked(_addresses));
+        bytes32 addressesHash = keccak256(abi.encodePacked(_addresses));
 
-        // map oracleRequestId to the current requestCounter
-        requestIds[oracleRequestId] = requestCounter;
+        // map oracleRequestHash to the current requestCounter
+        requestIds[oracleRequestHash] = requestCounter;
 
-        // store request data under the addressHash
+        // store request data under the requestCounter
         requests[requestCounter].proposer = msg.sender;
-        requests[requestCounter].addressHash = addressHash;
+        requests[requestCounter].addressesHash = addressesHash;
         requests[requestCounter].proposedPrice = PROPOSAL_YES_RESPONSE;
         requests[requestCounter].addressesCount = _addresses.length;
         
 
         // transfer totalBond from proposer to contract for forwarding to Oracle
-        //TO DO: adjust front end approval to be for totalBond
         if (totalBond > 0) {
             bool success = WETH.transferFrom(
                 msg.sender,
@@ -174,11 +178,11 @@ contract Decentralist is Initializable, Ownable {
             address(this),
             PRICE_ID,
             currentRequestTime,
-            ancillaryDataFull,
+            ancillaryData,
             PROPOSAL_YES_RESPONSE
         );
 
-        emit ProposedAddition(requestCounter, addressHash, _addresses);
+        emit ProposedAddition(requestCounter, addressesHash, _addresses);
         requestCounter++;
     }
 
@@ -202,29 +206,25 @@ contract Decentralist is Initializable, Ownable {
         }
 
         //prepare price request data
-        bytes memory ancillaryDataFull = bytes.concat(
-            fixedAncillaryData,
-            // TO DO: is there a better way to describe the below?
-            ". Addresses to query can be found in the pendingAddresses parameter of the ProposedAddition event emitted by the requester's address in the same transaction as the proposed price."
+        bytes memory ancillaryData = bytes.concat(
+            fixedAncillaryData, " Request ID = ", AncillaryData.toUtf8BytesUint(requestCounter) 
         );
+
         uint256 currentRequestTime = block.timestamp;
 
-        uint256 totalBond = requestPriceFlow(currentRequestTime, ancillaryDataFull);
+        uint256 totalBond = assertPriceFlow(currentRequestTime, ancillaryData);
 
-        // TO DO: change this to keccak hash, not concat in all instances
-        bytes memory oracleRequestId = bytes.concat(
-            ancillaryDataFull,
-            abi.encodePacked(currentRequestTime)
-        );
+        // DONE: change this to keccak hash, not concat in all instances
+        bytes32 oracleRequestHash = keccak256(abi.encodePacked(ancillaryData, currentRequestTime));
 
-        bytes32 addressHash = keccak256(abi.encodePacked(_addresses));
+        bytes32 addressesHash = keccak256(abi.encodePacked(_addresses));
 
-        // map oracleRequestId to the current requestCounter
-        requestIds[oracleRequestId] = requestCounter;
+        // map oracleRequestHash to the current requestCounter
+        requestIds[oracleRequestHash] = requestCounter;
 
-        // store request data under the addressHash
+        // store request data under the addressesHash
         requests[requestCounter].proposer = msg.sender;
-        requests[requestCounter].addressHash = addressHash;
+        requests[requestCounter].addressesHash = addressesHash;
         requests[requestCounter].proposedPrice = 0;
         requests[requestCounter].addressesCount = _addresses.length;
         
@@ -253,11 +253,11 @@ contract Decentralist is Initializable, Ownable {
             address(this),
             PRICE_ID,
             currentRequestTime,
-            ancillaryDataFull,
+            ancillaryData,
             0
         );
 
-        emit ProposedRemoval(requestCounter, addressHash, _addresses);
+        emit ProposedRemoval(requestCounter, addressesHash, _addresses);
         requestCounter++;
     }
 
@@ -270,7 +270,7 @@ contract Decentralist is Initializable, Ownable {
     */
     //externally called settle function will call this when price is settled
     function priceSettled(
-        bytes32 identifier,
+        bytes32 /* identifier */,
         uint256 timestamp,
         bytes memory ancillaryData,
         int256 price
@@ -281,14 +281,11 @@ contract Decentralist is Initializable, Ownable {
             msg.sender == address(oracle),
             "only oracle can call this function"
         ); */
-        bytes memory oracleRequestId = bytes.concat(
-            ancillaryData,
-            abi.encodePacked(timestamp)
-        );
+        bytes32 oracleRequestHash = keccak256(abi.encodePacked(ancillaryData, timestamp));
 
         // make memory copy of current request for reference
-        uint _requestId = requestIds[oracleRequestId];
-        Request memory currentRequest = requests[_requestId];
+        uint _requestId = requestIds[oracleRequestHash];
+        Request storage currentRequest = requests[_requestId];
 
         // handle proposed address removals
         if (currentRequest.proposedPrice == 0) {
@@ -363,23 +360,23 @@ contract Decentralist is Initializable, Ownable {
         }
     }
 
-    // TO DO: ADD FUNCTION FOR ACTING OUT APPROVED ADDRESS ARRAY HASHES ------------
-    function executeApprovedRequests(bytes32 addressesHash, address[] calldata _addresses) external {
+    // DONE: ADD FUNCTION FOR ACTING OUT APPROVED ADDRESS ARRAY HASHES ------------
+    function executeApprovedRequests(uint requestId, address[] calldata _addresses) external {
+        require(requests[requestId].status == Status.Approved, "requestId is not approved");
+        require(requests[requestId].addressesHash == keccak256(abi.encodePacked(_addresses)),
+            "addresses provided do not match the provided requestId's addressesHash");
 
+        requests[requestId].status = Status.Executed;
+
+        // add or remove addresses to onList mapping
+        bool newListValue;
+        if(requests[requestId].proposedPrice == PROPOSAL_YES_RESPONSE) {
+            newListValue = true;
+        }
+        for (uint256 i = 0; i <=_addresses.length - 1; i++) {
+            onList[_addresses[i]] = newListValue;
+        }
     }
-                /* example code for removing address from mapping
-                    for (
-                    uint256 i = 0;
-                    i <=
-                    pendingAddresses[currentRequest.pendingAddressesIndex].length - 1;
-                    i++
-                ) {
-                    onList[pendingAddresses[
-                        currentRequest.pendingAddressesIndex
-                    ][i]] = false;
-                } */
-
-
     // DONE: DELETE getPendingAddressesArray ------------
 
     /*
@@ -404,23 +401,23 @@ contract Decentralist is Initializable, Ownable {
     /*
     * @notice Internal function that calls oracle to request price and configure settings  
     * @param _currentRequestTime Timestamp for the price request
-    * @param _ancillaryDataFull Full ancillary data for the price request
+    * @param _ancillaryData Full ancillary data for the price request
     */
-    function requestPriceFlow(
+    function assertPriceFlow(
         uint256 _currentRequestTime,
-        bytes memory _ancillaryDataFull
+        bytes memory _ancillaryData
     ) internal returns(uint256 totalBond) {
         oracle.requestPrice(
             PRICE_ID,
             _currentRequestTime,
-            _ancillaryDataFull,
+            _ancillaryData,
             WETH,
             0
         );
         oracle.setCallbacks(
             PRICE_ID,
             _currentRequestTime,
-            _ancillaryDataFull,
+            _ancillaryData,
             false,
             false,
             true
@@ -428,13 +425,13 @@ contract Decentralist is Initializable, Ownable {
         oracle.setCustomLiveness(
             PRICE_ID,
             _currentRequestTime,
-            _ancillaryDataFull,
+            _ancillaryData,
             liveness
         );
         totalBond = oracle.setBond(
             PRICE_ID,
             _currentRequestTime,
-            _ancillaryDataFull,
+            _ancillaryData,
             bondAmount
         );
     }
