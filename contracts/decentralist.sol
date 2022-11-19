@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
+import "hardhat/console.sol";
+
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@uma/core/contracts/oracle/implementation/Constants.sol";
+import "@uma/core/contracts/oracle/interfaces/FinderInterface.sol";
 import "@uma/core/contracts/common/implementation/AncillaryData.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
@@ -18,18 +22,20 @@ contract Decentralist is Initializable, Ownable {
     event RevisionRejected(uint256 indexed revisionId);
     event RevisionExecuted(uint256 indexed revisionId);
 
-    OptimisticOracleV2Interface internal constant oracle =
-        OptimisticOracleV2Interface(0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884); //Goerli
-    IERC20 internal constant WETH =
-        IERC20(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6); //Goerli
+    event RewardsSet(uint256 addReward, uint256 removeReward);
+    event LivenessSet(uint64 liveness);
+    event BondSet(uint256 bondAmount);
 
+    OptimisticOracleV2Interface public oracle;
+
+    FinderInterface public finder;
     bytes public fixedAncillaryData;
     string public title;
     uint256 public bondAmount;
-    address public token;
+    IERC20 public token;
     uint256 public addReward;
     uint256 public removeReward;
-    uint256 public liveness;
+    uint64 public liveness;
     uint256 private revisionCounter;
 
     int256 internal constant PROPOSAL_YES_RESPONSE = int256(1e18);
@@ -57,51 +63,53 @@ contract Decentralist is Initializable, Ownable {
     // maps addresses to bool for inclusion on list
     mapping(address => bool) public onList;
 
-    /*
+    /**
      * @notice Initialize contract
+     * @param _finder is the address of UMA address finder. This is set in the DecentralistProxyFactory constructor.
      * @param _listCriteria Criteria for what addresses should be included on list. Can be text or link to IPFS.
      * @param _title Short title for the list
-     * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours
+     * @param _token is the address of the token currency used for this contract. Must be on UMA's collateral whitelist
      * @param _bondAmount Additional bond required, beyond the final fee
      * @param _addReward Reward per address successfully added to the list, paid by contract to proposer
      * @param _removeReward Reward per address successfully removed from the list, paid by contract to proposer
+     * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours
      * @param _owner Owner of contract can remove funds from contract and adjust reward rates. Set to 0 address to make contract 'public'.
      */
     function initialize(
+        address _finder,
         bytes memory _listCriteria,
         string memory _title,
         address _token,
         uint256 _bondAmount,
         uint256 _addReward,
         uint256 _removeReward,
-        uint256 _liveness,
+        uint64 _liveness,
         address _owner
     ) public initializer {
-        // TO DO: remove comments after testing
-        // require(_liveness > 8 hours, "liveness must be 8 hours or greater");
-        // TO DO: change to bond amount >= final fee to work with any approved token & remove comments after testing
-        // require(_bondAmount > 1500 * 10e6, "bond must be 1500 WETH or greater");
-
+        finder = FinderInterface(_finder);
         // add boilerplate directions for verification to _listCriteria
         fixedAncillaryData = bytes.concat(
             _listCriteria,
             ". Addresses to query can be found in the pendingAddresses parameter of the RevisionProposed event emitted by the requester's address in the same transaction as the proposed price with Revision ID = "
         );
         title = _title;
-        token = _token;
+        token = IERC20(_token);
         bondAmount = _bondAmount;
         addReward = _addReward;
         removeReward = _removeReward;
         liveness = _liveness;
+
         _transferOwnership(_owner);
+        syncOracle();
+
         revisionCounter = 1;
     }
 
-    /*
-     * @notice Proposes revisions (additions or removals of addresses to the list) to the oracle. 
-     * Caller must have approved this contract to spend the total bond amount of the contract's token before calling
-     * @param _price price for the proposed revision. 0 = remove, 1e18 = add
+    /**
+     * @notice Proposes addresses to add or remove from the list
+     * @param _price for the proposed revision. 0 = remove, 1e18 = add
      * @param _addresses array of addresses for the proposed revision
+     * @dev Caller must have approved this contract to spend the total bond amount of the contract's token before calling
      */
     function proposeRevision(int256 _price, address[] calldata _addresses)
         public
@@ -134,7 +142,7 @@ contract Decentralist is Initializable, Ownable {
         revisions[revisionCounter].addressesCount = _addresses.length;
 
         // request price from oracle and configure request settings
-        oracle.requestPrice(PRICE_ID, currentTime, ancillaryData, WETH, 0);
+        oracle.requestPrice(PRICE_ID, currentTime, ancillaryData, token, 0);
         oracle.setCallbacks(
             PRICE_ID,
             currentTime,
@@ -158,7 +166,7 @@ contract Decentralist is Initializable, Ownable {
 
         // transfer totalBond from proposer to contract for forwarding to Oracle
         if (totalBond > 0) {
-            bool success = WETH.transferFrom(
+            bool success = token.transferFrom(
                 msg.sender,
                 address(this),
                 totalBond
@@ -168,7 +176,7 @@ contract Decentralist is Initializable, Ownable {
 
         // approve oracle to transfer total bond amount from list contract
         if (totalBond > 0) {
-            bool success = WETH.approve(address(oracle), totalBond);
+            bool success = token.approve(address(oracle), totalBond);
             require(
                 success,
                 "approval of bond amount from List contract to Oracle failed"
@@ -189,12 +197,11 @@ contract Decentralist is Initializable, Ownable {
         revisionCounter++;
     }
 
-    /*
+    /**
      * @notice Callback function called upon oracle price settlement to update the Revision status to Approved or Rejected
-     * @param identifer price identifier to identify the existing request.
      * @param timestamp timestamp to identify the existing request.
      * @param ancillaryData ancillary data of the price being requested.
-     * @param settled price returned from the oracle
+     * @param price price returned from the oracle
      */
     function priceSettled(
         bytes32, /* identifier */
@@ -225,15 +232,14 @@ contract Decentralist is Initializable, Ownable {
         }
     }
 
-    /*  
+    /**
      * @notice executes approved revisions by revising list and paying out rewards to proposer
      * @param _revisionId to be executed. If Revision submitted does not have status Approved, tx will revert.
      * @param _addresses address array that matches the array logged in the RevisionProposed event for the provided _revisionId
      */
-    function executeRevision(
-        uint256 _revisionId,
-        address[] calldata _addresses
-    ) external {
+    function executeRevision(uint256 _revisionId, address[] calldata _addresses)
+        external
+    {
         require(
             revisions[_revisionId].status == Status.Approved,
             "_revisionId is not approved"
@@ -247,15 +253,16 @@ contract Decentralist is Initializable, Ownable {
         //update Revision status
         revisions[_revisionId].status = Status.Executed;
 
-        // set rewards and new list value based on the proposed price of the Revision
-        bool newListValue;
+        // default newListValue and rewardRate to remove addresses
+        bool newListValue = false;
         uint256 rewardRate = removeReward;
+        // if Revision proposedPrice is to add addresses, set newListValue and rewardRate to add addresses
         if (revisions[_revisionId].proposedPrice == PROPOSAL_YES_RESPONSE) {
             newListValue = true;
             rewardRate = addReward;
         }
 
-        // revise list as necessary and count changes for rewards
+        // add or remove address from the list and increment rewardCounter for calculating rewards
         uint256 rewardCounter;
         for (uint256 i = 0; i <= _addresses.length - 1; i++) {
             if (onList[_addresses[i]] != newListValue) {
@@ -267,37 +274,73 @@ contract Decentralist is Initializable, Ownable {
         // calculate & pay out rewards to proposer
         uint256 reward = rewardRate * rewardCounter;
         if (reward > 0) {
-            if (WETH.balanceOf(address(this)) < reward) {
-                WETH.transfer(
+            if (token.balanceOf(address(this)) < reward) {
+                token.transfer(
                     revisions[_revisionId].proposer,
-                    WETH.balanceOf(address(this))
+                    token.balanceOf(address(this))
                 );
             } else {
-                WETH.transfer(revisions[_revisionId].proposer, reward);
+                token.transfer(revisions[_revisionId].proposer, reward);
             }
         }
         emit RevisionExecuted(_revisionId);
     }
 
-    /*
+    /**
      * @notice Allows owner to withdraw funds from the contract.
      * @param recipient of funds
      * @param amount to send
      */
     function withdraw(address recipient, uint256 amount) external onlyOwner {
-        WETH.transfer(recipient, amount);
+        token.transfer(recipient, amount);
     }
 
-    /*
-     * @notice Allows owner to adjust reward amounts
-     * @param _addReward New reward per address successfully added to the list, paid by contract to proposer
-     * @param _removeReward New reward per address successfully removed from the list, paid by contract to proposer
+    /**
+     * @notice Sets the add and remove rewards for successful revisions
+     * @param _addReward reward to proposer per address successfully added to the list
+     * @param _removeReward reward to proposer per address successfully removed from the list
      */
-    function adjustRewards(uint256 _addReward, uint256 _removeReward)
-        external
-        onlyOwner
-    {
+    function setRewards(uint256 _addReward, uint256 _removeReward) public onlyOwner {
         addReward = _addReward;
         removeReward = _removeReward;
+        emit RewardsSet(_addReward, _removeReward);
+    }
+
+    /**
+     * @notice Sets the bond amount for revisions.
+     * @param _bondAmount amount of the bond token that will need to be paid for future proposals.
+     */
+    function setBond(uint256 _bondAmount) public onlyOwner {
+        // Value of the bond required for proposing revisions, in addition to the final fee. A bond of zero is
+        // acceptable, in which case the Optimistic Oracle will require the final fee as the bond.
+
+        //TO DO: enforce minimum bond as a multiplier of the final fee?
+        
+        bondAmount = _bondAmount;
+        emit BondSet(_bondAmount);
+    }
+
+    /**
+     * @notice Sets the liveness for future revisions. This is the amount of delay before a proposal is approved by
+     * default.
+     * @param _liveness liveness to set in seconds.
+     */
+    function setLiveness(uint64 _liveness) public onlyOwner {
+        // TO DO: remove comments after testing
+        /* require(_liveness >= 8 hours, "liveness must be >= 8 hours");
+        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks"); */
+        liveness = _liveness;
+        emit LivenessSet(_liveness);
+    }
+
+    /**
+     * @notice This pulls in the most up-to-date Optimistic Oracle.
+     * @dev If a new OptimisticOracle is added and this is run between a revision's introduction and execution, the
+     * proposal will become unexecutable.
+     */
+    function syncOracle() public {
+        oracle = OptimisticOracleV2Interface(
+            finder.getImplementationAddress(OracleInterfaces.OptimisticOracleV2)
+        );
     }
 }

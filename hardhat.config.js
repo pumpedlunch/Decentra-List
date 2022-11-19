@@ -6,6 +6,12 @@ module.exports = {
   solidity: "0.8.17",
   defaultNetwork: "goerli",
   networks: {
+    hardhat: {
+      forking: {
+        url: process.env.GOERLI_URL,
+        blockNumber: 7976387
+      }
+    },
     goerli: {
       url: process.env.GOERLI_URL,
       accounts: [process.env.PRIVATE_KEY],
