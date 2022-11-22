@@ -6,7 +6,7 @@ import "@uma/core/contracts/oracle/interfaces/FinderInterface.sol";
 import "@uma/core/contracts/common/interfaces/AddressWhitelistInterface.sol";
 import "@uma/core/contracts/oracle/implementation/Constants.sol";
 
-contract DecentralistProxyFactory {
+contract DecentraListProxyFactory {
     address public implementationContract;
 
     address[] public allClones;

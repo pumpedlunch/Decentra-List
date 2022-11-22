@@ -12,7 +12,7 @@ import "@uma/core/contracts/oracle/interfaces/FinderInterface.sol";
 import "@uma/core/contracts/common/implementation/AncillaryData.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
-contract Decentralist is Initializable, Ownable {
+contract DecentraList is Initializable, Ownable {
     event RevisionProposed(
         uint256 indexed revisionId,
         int256 proposedPrice,
@@ -25,7 +25,7 @@ contract Decentralist is Initializable, Ownable {
     event RewardsSet(uint256 addReward, uint256 removeReward);
     event LivenessSet(uint64 liveness);
     event BondSet(uint256 bondAmount);
-
+    
     OptimisticOracleV2Interface public oracle;
 
     FinderInterface public finder;
@@ -42,6 +42,7 @@ contract Decentralist is Initializable, Ownable {
     bytes32 internal constant PRICE_ID = "YES_OR_NO_QUERY";
 
     enum Status {
+        Ivalid, 
         Pending,
         Approved,
         Rejected,
@@ -52,7 +53,6 @@ contract Decentralist is Initializable, Ownable {
         address proposer;
         bytes32 addressesHash;
         int256 proposedPrice;
-        uint256 addressesCount;
         Status status;
     }
 
@@ -139,7 +139,7 @@ contract Decentralist is Initializable, Ownable {
         revisions[revisionCounter].proposer = msg.sender;
         revisions[revisionCounter].addressesHash = addressesHash;
         revisions[revisionCounter].proposedPrice = _price;
-        revisions[revisionCounter].addressesCount = _addresses.length;
+        revisions[revisionCounter].status = Status.Pending;
 
         // request price from oracle and configure request settings
         oracle.requestPrice(PRICE_ID, currentTime, ancillaryData, token, 0);
