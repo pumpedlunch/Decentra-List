@@ -12,7 +12,7 @@ import "@uma/core/contracts/oracle/interfaces/FinderInterface.sol";
 import "@uma/core/contracts/common/implementation/AncillaryData.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
-contract DecentraList is Initializable, Ownable {
+contract Decentralist is Initializable, Ownable {
     event RevisionProposed(
         uint256 indexed revisionId,
         int256 proposedPrice,
@@ -42,7 +42,7 @@ contract DecentraList is Initializable, Ownable {
     bytes32 internal constant PRICE_ID = "YES_OR_NO_QUERY";
 
     enum Status {
-        Ivalid, 
+        Invalid, 
         Pending,
         Approved,
         Rejected,

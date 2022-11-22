@@ -7,14 +7,12 @@ import ListModal from "./listModal";
 import LOGO from "./decentralist.png";
 import BigNumber from "bignumber.js";
 const PROXY_ABI =
-  require("../artifacts/contracts/DecentraList.sol/DecentraList.json").abi;
+  require("../artifacts/contracts/Decentralist.sol/Decentralist.json").abi;
 const FACTORY_ABI =
-  require("../artifacts/contracts/DecentraListProxyFactory.sol/DecentraListProxyFactory.json").abi;
+  require("../artifacts/contracts/DecentralistProxyFactory.sol/DecentralistProxyFactory.json").abi;
 const WETH_ABI = require("../public/WETH_ABI.json");
 //TO DO: HAVE CF ADDRESSES FOR MAINNET & GOERLI, PICK BASED ON NETWORK ID FROM WALLET
 const FACTORY_ADDRESS = "0x0808f2Af5AdDaf3aA4034b352d93031C96CF5519";
-//TO DO: GET TOKEN ADDRESS FROM LIST
-const WETH_ADDRESS = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"; // Goerli
 
 //require("dotenv").config();
 
@@ -54,7 +52,6 @@ export default function List() {
   const provider = new ethers.providers.Web3Provider(window.ethereum);
 
   // Address modal functions
-  //TO DO: UPDATE FOR NEW SMART CONTRACT
 
   const handleAddressInputChange = (event) => {
     setAddressInput(event.target.value);
@@ -88,7 +85,6 @@ export default function List() {
   };
 
   // List modal functions
-  //TO DO: UPDATE FOR NEW SMART CONTRACT
 
   const handleListCriteriaArgChange = (event) => {
     setListCriteriaArg(event.target.value);
@@ -213,7 +209,6 @@ export default function List() {
     const approveTx = await contract.approve(currentProxy, bondAmount);
   };
 
-  //TO DO: UPDATE FOR NEW SMART CONTRACT
   const createList = async () => {
     const contract = await prepareContract(FACTORY_ADDRESS, FACTORY_ABI);
     const createListTx = await contract.createNewDecentralist(
