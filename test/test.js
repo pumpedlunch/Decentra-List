@@ -36,7 +36,7 @@ const BOND_AMOUNT = 200;
 const ADD_REWARD = 100;
 const REMOVE_REWARD = 50;
 const LIVENESS = 1;
-const ADDRESSES = generateAddressArray(10);
+const ADDRESSES = generateAddressArray(134); //set address array length here
 
 describe("DecentraList Test", function () {
   it("deploys DecentraList and ProxyFactory", async function () {
@@ -86,7 +86,7 @@ describe("DecentraList Test", function () {
     expect(listAddress).to.be.a.properAddress;
   });
 
-   it("owner can adjust parameters", async function () {
+   /* it("owner can adjust parameters", async function () {
     list = Decentralist.attach(listAddress);
     const tx2 = await list.setRewards(ADD_REWARD + 100, REMOVE_REWARD + 100);
     const tx3 = await list.setBond(BOND_AMOUNT + 100);
@@ -102,7 +102,7 @@ describe("DecentraList Test", function () {
     list = Decentralist.attach(listAddress).connect(signer2);
 
     expect(list.setBond(BOND_AMOUNT + 100)).to.be.reverted;
-  });
+  }); */
 
   it("Add Addresses", async function () {
     // APPROVE TOKEN SPEND FOR BOND
@@ -118,12 +118,14 @@ describe("DecentraList Test", function () {
     //create list contract
     list = Decentralist.attach(listAddress).connect(signer1);
 
-    //propose revisino to add addresses
-    const tx1 = await list.proposeRevision(YES, ADDRESSES);
+    //propose revision to add addresses
+    let tx1 = await list.proposeRevision(YES, ADDRESSES);
     await expect(tx1).to.emit(list, "RevisionProposed");
 
+
     //get OO request data
-    const receipt1 = await tx1.wait();
+    const receipt1 = await tx1.wait()  
+    console.log(receipt1)
     let log = OOV2Interface.parseLog(receipt1.logs[0]);
     ({ requester, identifier, timestamp, ancillaryData } = log.args);
 
@@ -153,11 +155,11 @@ describe("DecentraList Test", function () {
     // call executeRevision
     const tx3 = await list.executeRevision(1, ADDRESSES);
     await expect(tx3).to.emit(list, "RevisionExecuted");
-    await expect(tx3).to.changeTokenBalances(
-      token,
-      [listAddress, signer1.address],
-      [-ADDRESSES.length * ADD_REWARD, ADDRESSES.length * ADD_REWARD]
-    );
+    // await expect(tx3).to.changeTokenBalances(
+    //   token,
+    //   [listAddress, signer1.address],
+    //   [-ADDRESSES.length * ADD_REWARD, ADDRESSES.length * ADD_REWARD]
+    // );
 
     const receipt3 = await tx3.wait();
     console.log(
@@ -185,7 +187,7 @@ describe("DecentraList Test", function () {
     await expect(list.executeRevision(1, ADDRESSES)).to.be.reverted;
   });
 
-  it("Remove Addresses", async function () {
+ /*  it("Remove Addresses", async function () {
     const REMOVALS = ADDRESSES.splice(0,5);
 
     const tx1 = await list.proposeRevision(0, REMOVALS);
@@ -241,9 +243,9 @@ describe("DecentraList Test", function () {
     }
 
     expect(success).to.equal(true);
-  });
+  }); */
 
-  it("Remove Addresses with overlapping address array", async function () {
+  /* it("Remove Addresses with overlapping address array", async function () {
     const REMOVALS = ADDRESSES.splice(0,3);
 
     const tx1 = await list.proposeRevision(0, REMOVALS);
@@ -300,9 +302,9 @@ describe("DecentraList Test", function () {
     }
 
     expect(success).to.equal(true);
-  });
+  }); */
 
-  it("Disputed Revision", async function () {
+/*   it("Disputed Revision", async function () {
     const tx1 = await list.proposeRevision(YES, ADDRESSES);
 
     await expect(tx1).to.emit(list, "RevisionProposed");
@@ -318,7 +320,7 @@ describe("DecentraList Test", function () {
 
     // make sure revision can not be executed after rejection
     await expect(list.executeRevision(3, ADDRESSES)).to.be.reverted;
-  });
+  }); */
 
 });
 

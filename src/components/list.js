@@ -12,7 +12,7 @@ const FACTORY_ABI =
   require("../artifacts/contracts/DecentralistProxyFactory.sol/DecentralistProxyFactory.json").abi;
 const WETH_ABI = require("../public/WETH_ABI.json");
 //TO DO: HAVE CF ADDRESSES FOR MAINNET & GOERLI, PICK BASED ON NETWORK ID FROM WALLET
-const FACTORY_ADDRESS = "0x0808f2Af5AdDaf3aA4034b352d93031C96CF5519";
+const FACTORY_ADDRESS = "0x5Aa73316E9fFdb7461e67f64949b089d3B5ff080";
 
 //require("dotenv").config();
 
@@ -63,6 +63,7 @@ export default function List() {
   };
 
   const handleRevisionInput = async (event) => {
+    //TO DO: REMOVE ANY SPACES
     event.preventDefault();
     let price = 0;
     if (isAdd) price = 1e18.toString();

@@ -1,4 +1,3 @@
-// contracts/GameItem.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
@@ -18,9 +17,9 @@ contract Decentralist is Initializable, Ownable {
         int256 proposedPrice,
         address[] pendingAddresses
     );
-    event RevisionApproved(uint256 indexed revisionId);
-    event RevisionRejected(uint256 indexed revisionId);
-    event RevisionExecuted(uint256 indexed revisionId);
+    event RevisionApproved(uint256 indexed revisionId, int256 proposedPrice);
+    event RevisionRejected(uint256 indexed revisionId, int256 proposedPrice);
+    event RevisionExecuted(uint256 indexed revisionId, int256 proposedPrice, address[] revisedAddresses);
 
     event RewardsSet(uint256 addReward, uint256 removeReward);
     event LivenessSet(uint64 liveness);
@@ -225,10 +224,10 @@ contract Decentralist is Initializable, Ownable {
         // set status to Approved or Rejected
         if (revisions[revisionId].proposedPrice == price) {
             revisions[revisionId].status = Status.Approved;
-            emit RevisionApproved(revisionId);
+            emit RevisionApproved(revisionId, revisions[revisionId].proposedPrice);
         } else {
             revisions[revisionId].status = Status.Rejected;
-            emit RevisionRejected(revisionId);
+            emit RevisionRejected(revisionId, revisions[revisionId].proposedPrice);
         }
     }
 
@@ -262,11 +261,14 @@ contract Decentralist is Initializable, Ownable {
             rewardRate = addReward;
         }
 
-        // add or remove address from the list and increment rewardCounter for calculating rewards
+        // add or remove address from the list, increment rewardCounter for calculating rewards and record revised Addresses
         uint256 rewardCounter;
-        for (uint256 i = 0; i <= _addresses.length - 1; i++) {
+        address[] memory revisedAddresses = new address[](_addresses.length);
+
+        for (uint256 i = 0; i < _addresses.length; i++) {
             if (onList[_addresses[i]] != newListValue) {
                 onList[_addresses[i]] = newListValue;
+                revisedAddresses[i] = _addresses[i];
                 rewardCounter++;
             }
         }
@@ -283,7 +285,7 @@ contract Decentralist is Initializable, Ownable {
                 token.transfer(revisions[_revisionId].proposer, reward);
             }
         }
-        emit RevisionExecuted(_revisionId);
+        emit RevisionExecuted(_revisionId, revisions[_revisionId].proposedPrice, revisedAddresses);
     }
 
     /**
