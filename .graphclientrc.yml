@@ -1,0 +1,9 @@
+# .graphclientrc.yml
+sources:
+  - name: decentralist
+    handler:
+      graphql:
+        endpoint: https://api.studio.thegraph.com/query/33198/decentralist/v0.1.0
+
+documents:
+  - ./src/decentralist.graphql

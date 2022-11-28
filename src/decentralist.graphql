@@ -1,0 +1,5 @@
+query AddressListQuery {
+  addressList(id: "0x8e4f9F4e7C6920Ce9A818Cd1284915db149dCdC5") {
+    addresses
+  }
+}
