@@ -316,7 +316,7 @@ contract Decentralist is Initializable, Ownable {
         // Value of the bond required for proposing revisions, in addition to the final fee. A bond of zero is
         // acceptable, in which case the Optimistic Oracle will require the final fee as the bond.
 
-        //TO DO: enforce minimum bond as a multiplier of the final fee?
+        //TO DO: after testing add require(bondAmount >= final fee)
         
         bondAmount = _bondAmount;
         emit BondSet(_bondAmount);
