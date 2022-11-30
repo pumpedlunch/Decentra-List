@@ -14,12 +14,12 @@ import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 contract Decentralist is Initializable, Ownable {
     event RevisionProposed(
         uint256 indexed revisionId,
-        int256 proposedPrice,
+        int256 proposedValue,
         address[] pendingAddresses
     );
-    event RevisionApproved(uint256 indexed revisionId, int256 proposedPrice);
-    event RevisionRejected(uint256 indexed revisionId, int256 proposedPrice);
-    event RevisionExecuted(uint256 indexed revisionId, int256 proposedPrice, address[] revisedAddresses);
+    event RevisionApproved(uint256 indexed revisionId, int256 proposedValue);
+    event RevisionRejected(uint256 indexed revisionId, int256 proposedValue);
+    event RevisionExecuted(uint256 indexed revisionId, int256 proposedValue, address[] revisedAddresses);
 
     event RewardsSet(uint256 addReward, uint256 removeReward);
     event LivenessSet(uint64 liveness);
@@ -38,7 +38,7 @@ contract Decentralist is Initializable, Ownable {
     uint256 private revisionCounter;
 
     int256 internal constant PROPOSAL_YES_RESPONSE = int256(1e18);
-    bytes32 internal constant PRICE_ID = "YES_OR_NO_QUERY";
+    bytes32 internal constant IDENTIFIER = "YES_OR_NO_QUERY";
 
     enum Status {
         Invalid, 
@@ -51,7 +51,7 @@ contract Decentralist is Initializable, Ownable {
     struct Revision {
         address proposer;
         bytes32 addressesHash;
-        int256 proposedPrice;
+        int256 proposedValue;
         Status status;
     }
 
@@ -89,7 +89,7 @@ contract Decentralist is Initializable, Ownable {
         // add boilerplate directions for verification to _listCriteria
         fixedAncillaryData = bytes.concat(
             _listCriteria,
-            ". Addresses to query can be found in the pendingAddresses parameter of the RevisionProposed event emitted by the requester's address in the same transaction as the proposed price with Revision ID = "
+            ". Addresses to query can be found in the pendingAddresses parameter of the RevisionProposed event emitted by the requester's address in the same transaction as the proposed value with Revision ID = "
         );
         title = _title;
         token = IERC20(_token);
@@ -106,19 +106,19 @@ contract Decentralist is Initializable, Ownable {
 
     /**
      * @notice Proposes addresses to add or remove from the list
-     * @param _price for the proposed revision. 0 = remove, 1e18 = add
+     * @param _value for the proposed revision. 0 = remove, 1e18 = add
      * @param _addresses array of addresses for the proposed revision
      * @dev Caller must have approved this contract to spend the total bond amount of the contract's token before calling
      */
-    function proposeRevision(int256 _price, address[] calldata _addresses)
+    function proposeRevision(int256 _value, address[] calldata _addresses)
         public
     {
         require(
-            _price == 0 || _price == PROPOSAL_YES_RESPONSE,
-            "invalid price"
+            _value == 0 || _value == PROPOSAL_YES_RESPONSE,
+            "invalid value"
         );
 
-        // prepare oracle price request data
+        // prepare oracle request data
         bytes memory ancillaryData = bytes.concat(
             fixedAncillaryData,
             AncillaryData.toUtf8BytesUint(revisionCounter)
@@ -137,13 +137,13 @@ contract Decentralist is Initializable, Ownable {
         // store Revision data in revisions mapping under the revisionCounter
         revisions[revisionCounter].proposer = msg.sender;
         revisions[revisionCounter].addressesHash = addressesHash;
-        revisions[revisionCounter].proposedPrice = _price;
+        revisions[revisionCounter].proposedValue = _value;
         revisions[revisionCounter].status = Status.Pending;
 
-        // request price from oracle and configure request settings
-        oracle.requestPrice(PRICE_ID, currentTime, ancillaryData, token, 0);
+        // request data from oracle and configure request settings
+        oracle.requestPrice(IDENTIFIER, currentTime, ancillaryData, token, 0);
         oracle.setCallbacks(
-            PRICE_ID,
+            IDENTIFIER,
             currentTime,
             ancillaryData,
             false,
@@ -151,13 +151,13 @@ contract Decentralist is Initializable, Ownable {
             true
         );
         oracle.setCustomLiveness(
-            PRICE_ID,
+            IDENTIFIER,
             currentTime,
             ancillaryData,
             liveness
         );
         uint256 totalBond = oracle.setBond(
-            PRICE_ID,
+            IDENTIFIER,
             currentTime,
             ancillaryData,
             bondAmount
@@ -182,31 +182,31 @@ contract Decentralist is Initializable, Ownable {
             );
         }
 
-        // propose price to oracle
+        // propose value to oracle
         oracle.proposePriceFor(
             msg.sender,
             address(this),
-            PRICE_ID,
+            IDENTIFIER,
             currentTime,
             ancillaryData,
-            _price
+            _value
         );
 
-        emit RevisionProposed(revisionCounter, _price, _addresses);
+        emit RevisionProposed(revisionCounter, _value, _addresses);
         revisionCounter++;
     }
 
     /**
-     * @notice Callback function called upon oracle price settlement to update the Revision status to Approved or Rejected
+     * @notice Callback function called upon oracle data settlement to update the Revision status to Approved or Rejected
      * @param timestamp timestamp to identify the existing request.
-     * @param ancillaryData ancillary data of the price being requested.
-     * @param price price returned from the oracle
+     * @param ancillaryData ancillary data of the data being requested.
+     * @param value value returned from the oracle
      */
     function priceSettled(
         bytes32, /* identifier */
         uint256 timestamp,
         bytes memory ancillaryData,
-        int256 price
+        int256 value
     ) external {
         //TO DO: REMOVE COMMENTED OUT PORTION BELOW AFTER TESTING
         // restrict function access to oracle
@@ -222,12 +222,12 @@ contract Decentralist is Initializable, Ownable {
         uint256 revisionId = revisionIds[oracleRequestHash];
 
         // set status to Approved or Rejected
-        if (revisions[revisionId].proposedPrice == price) {
+        if (revisions[revisionId].proposedValue == value) {
             revisions[revisionId].status = Status.Approved;
-            emit RevisionApproved(revisionId, revisions[revisionId].proposedPrice);
+            emit RevisionApproved(revisionId, revisions[revisionId].proposedValue);
         } else {
             revisions[revisionId].status = Status.Rejected;
-            emit RevisionRejected(revisionId, revisions[revisionId].proposedPrice);
+            emit RevisionRejected(revisionId, revisions[revisionId].proposedValue);
         }
     }
 
@@ -255,8 +255,8 @@ contract Decentralist is Initializable, Ownable {
         // default newListValue and rewardRate to remove addresses
         bool newListValue = false;
         uint256 rewardRate = removeReward;
-        // if Revision proposedPrice is to add addresses, set newListValue and rewardRate to add addresses
-        if (revisions[_revisionId].proposedPrice == PROPOSAL_YES_RESPONSE) {
+        // if Revision proposedValue is to add addresses, set newListValue and rewardRate to add addresses
+        if (revisions[_revisionId].proposedValue == PROPOSAL_YES_RESPONSE) {
             newListValue = true;
             rewardRate = addReward;
         }
@@ -285,7 +285,7 @@ contract Decentralist is Initializable, Ownable {
                 token.transfer(revisions[_revisionId].proposer, reward);
             }
         }
-        emit RevisionExecuted(_revisionId, revisions[_revisionId].proposedPrice, revisedAddresses);
+        emit RevisionExecuted(_revisionId, revisions[_revisionId].proposedValue, revisedAddresses);
     }
 
     /**
