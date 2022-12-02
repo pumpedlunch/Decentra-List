@@ -17,8 +17,8 @@ contract DecentralistProxyFactory {
     event NewClone(address _clone);
 
     /**
-    * @param _implementation is the address decentraList address that clones will be based on.
-    * @param _finder is the address of UMA address finder. This is set in the DecentralistProxyFactory constructor.
+    * @param _implementation The decentraList implementation contract that clones will be based on.
+    * @param _finder The address of UMA Finder contract. This is set in the DecentralistProxyFactory constructor.
     */
     constructor(address _implementation, address _finder) {
         require(_finder != address(0), "implementation address can not be empty");
@@ -29,15 +29,15 @@ contract DecentralistProxyFactory {
     }
 
     /**
-    * @notice creates new decentraList smart contract
-    * @param _listCriteria Criteria for what addresses should be included on list. Can be text or link to IPFS.
-    * @param _title Short title for the list
-    * @param _token is the address of the token currency used for this contract. Must be on UMA's collateral whitelist
-    * @param _bondAmount Additional bond required, beyond the final fee
-    * @param _addReward Reward per address successfully added to the list, paid by contract to proposer
-    * @param _removeReward Reward per address successfully removed from the list, paid by contract to proposer
-    * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours
-    * @param _owner Owner of contract can remove funds from contract and adjust reward rates. Set to 0 address to make contract 'public'.
+    * @notice Creates a new decentraList smart contract.
+    * @param _listCriteria Criteria for what addresses should be included on the list. Can be on-chain text or a link to IPFS.
+    * @param _title Short title for the list.
+    * @param _token The address of the token currency used for this contract. Must be on UMA's collateral whitelist.
+    * @param _bondAmount Additional bond required, beyond the final fee.
+    * @param _addReward Reward per address successfully added to the list, paid by the contract to the proposer.
+    * @param _removeReward Reward per address successfully removed from the list, paid by the contract to the proposer.
+    * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours.
+    * @param _owner Owner of the contract can remove funds from the contract and adjust reward rates. Set to the 0 address to make the contract 'public'.
     */
     function createNewDecentralist(
         bytes memory _listCriteria,
@@ -69,7 +69,7 @@ contract DecentralistProxyFactory {
                 _owner
             )
         );
-        require(success, "instance.call failed");
+        require(success, "failed to create a new instance");
 
         // store new address
         allClones.push(instance);
@@ -78,16 +78,16 @@ contract DecentralistProxyFactory {
     }
 
     /**
-    * @notice returns all addresses created
+    * @notice Returns all instances created.
     */
 	function getAllClones() public view returns(address[] memory) {
 		return allClones;
 	}
 
     /**
-     * @notice This pulls in the most up-to-date Collateral Whitelist.
-     * @dev If a new OptimisticOracle is added and this is run between a revision's introduction and execution, the
-     * proposal will become unexecutable.
+     * @notice This pulls in the most up-to-date collateral whitelist.
+     * @dev If a new OptimisticOracle is added and this function is run between a list revision's proposal and execution,
+     * the proposal will become unexecutable.
      */
     function syncWhitelist() public {
         collateralWhitelist = AddressWhitelistInterface(finder.getImplementationAddress(OracleInterfaces.CollateralWhitelist));
