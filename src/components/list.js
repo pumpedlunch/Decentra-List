@@ -14,7 +14,7 @@ const WETH_ABI = require("../public/WETH_ABI.json");
 //TO DO: HAVE CF ADDRESSES FOR MAINNET & GOERLI, PICK BASED ON NETWORK ID FROM WALLET
 const FACTORY_ADDRESS = {
   Goerli: "0x5Aa73316E9fFdb7461e67f64949b089d3B5ff080",
-  Mainnet: "0xCBBe2A5c3A22BE749D5DDF24e9534f98951983e2"  //TO DO: UPDATE FROM LOCAL HOST ADDRESS 
+  Mainnet: "0xccA9728291bC98ff4F97EF57Be3466227b0eb06C"  //<-- LOCALHOST
 }
 const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/33198/decentralist/v0.1.0";
 
@@ -235,8 +235,8 @@ export default function List() {
     promises.push(
       listContract.fixedAncillaryData(),
       listContract.bondAmount(),
-      listContract.addReward(),
-      listContract.removeReward(),
+      listContract.additionReward(),
+      listContract.removalReward(),
       listContract.liveness(),
       listContract.owner(),
       tokenContract.balanceOf(proxyAddresses[index]),

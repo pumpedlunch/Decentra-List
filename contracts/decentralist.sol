@@ -4,14 +4,19 @@ pragma solidity ^0.8.2;
 import "hardhat/console.sol";
 
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "@uma/core/contracts/oracle/implementation/Constants.sol";
 import "@uma/core/contracts/oracle/interfaces/FinderInterface.sol";
 import "@uma/core/contracts/common/implementation/AncillaryData.sol";
+import "@uma/core/contracts/oracle/interfaces/StoreInterface.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
 contract Decentralist is Initializable, Ownable {
+    using SafeERC20 for IERC20;
+
     event RevisionProposed(
         uint256 indexed revisionId,
         int256 proposedValue,
@@ -26,6 +31,7 @@ contract Decentralist is Initializable, Ownable {
     event BondSet(uint256 bondAmount);
     
     OptimisticOracleV2Interface public oracle;
+    StoreInterface public store;
 
     FinderInterface public finder;
     bytes public fixedAncillaryData;
@@ -86,6 +92,13 @@ contract Decentralist is Initializable, Ownable {
         address _owner
     ) public initializer {
         finder = FinderInterface(_finder);
+        syncContracts();
+        token = IERC20(_token);
+
+        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "Bond must be greater or equal to final fee");
+        require(_liveness >= 8 hours, "liveness must be >= 8 hours");
+        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks");
+
         // add boilerplate directions for verification to _listCriteria
         fixedAncillaryData = bytes.concat(
             _listCriteria,
@@ -99,7 +112,6 @@ contract Decentralist is Initializable, Ownable {
         liveness = _liveness;
 
         _transferOwnership(_owner);
-        syncOracle();
 
         revisionCounter = 1;
     }
@@ -165,12 +177,11 @@ contract Decentralist is Initializable, Ownable {
 
         // transfer totalBond from proposer to contract for forwarding to Oracle
         if (totalBond > 0) {
-            bool success = token.transferFrom(
+            token.safeTransferFrom(
                 msg.sender,
                 address(this),
                 totalBond
             );
-            require(success, "transfer of bond amount to List contract failed");
         }
 
         // approve oracle to transfer total bond amount from list contract
@@ -208,12 +219,11 @@ contract Decentralist is Initializable, Ownable {
         bytes memory ancillaryData,
         int256 value
     ) external {
-        //TO DO: REMOVE COMMENTED OUT PORTION BELOW AFTER TESTING
         // restrict function access to oracle
-        /*  require(
+         require(
             msg.sender == address(oracle),
             "only oracle can call this function"
-        ); */
+        );
 
         // get revisionId from oracleRequestHash
         bytes32 oracleRequestHash = keccak256(
@@ -277,12 +287,12 @@ contract Decentralist is Initializable, Ownable {
         uint256 reward = rewardRate * rewardCounter;
         if (reward > 0) {
             if (token.balanceOf(address(this)) < reward) {
-                token.transfer(
+                token.safeTransfer(
                     revisions[_revisionId].proposer,
                     token.balanceOf(address(this))
                 );
             } else {
-                token.transfer(revisions[_revisionId].proposer, reward);
+                token.safeTransfer(revisions[_revisionId].proposer, reward);
             }
         }
         emit RevisionExecuted(_revisionId, revisions[_revisionId].proposedValue, revisedAddresses);
@@ -294,7 +304,7 @@ contract Decentralist is Initializable, Ownable {
      * @param amount The amount of tokens to to send.
      */
     function withdraw(address recipient, uint256 amount) external onlyOwner {
-        token.transfer(recipient, amount);
+        token.safeTransfer(recipient, amount);
     }
 
     /**
@@ -304,7 +314,7 @@ contract Decentralist is Initializable, Ownable {
      * @param _token The contract address of the token to send.
      */
     function rescue(address recipient, uint256 amount, address _token) external onlyOwner {
-        IERC20(_token).transfer(recipient, amount);
+        IERC20(_token).safeTransfer(recipient, amount);
     }
 
     /**
@@ -323,8 +333,10 @@ contract Decentralist is Initializable, Ownable {
      * @param _bondAmount Amount of the bond token that will need to be paid for future proposals.
      */
     function setBond(uint256 _bondAmount) public onlyOwner {
-        // Value of the bond required for proposing revisions, in addition to the final fee. A bond of zero is
-        // acceptable, in which case the Optimistic Oracle will require the final fee as the bond.
+        // Value of the bond required for proposing revisions, in addition to the final fee. Bond must be
+        // greater or equal to the final fee
+        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "Bond must be greater or equal to final fee");
+        
         bondAmount = _bondAmount;
         emit BondSet(_bondAmount);
     }
@@ -335,9 +347,8 @@ contract Decentralist is Initializable, Ownable {
      * @param _liveness Liveness to set in seconds.
      */
     function setLiveness(uint64 _liveness) public onlyOwner {
-        // TO DO: remove comments after testing
-        /* require(_liveness >= 8 hours, "liveness must be >= 8 hours");
-        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks"); */
+        require(_liveness >= 8 hours, "liveness must be >= 8 hours");
+        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks");
         liveness = _liveness;
         emit LivenessSet(_liveness);
     }
@@ -347,9 +358,12 @@ contract Decentralist is Initializable, Ownable {
      * @dev If a new OptimisticOracle is added and this is run between a revision's introduction and execution, the
      * proposal will become unexecutable.
      */
-    function syncOracle() public {
+    function syncContracts() public {
         oracle = OptimisticOracleV2Interface(
             finder.getImplementationAddress(OracleInterfaces.OptimisticOracleV2)
+        );
+        store = StoreInterface(
+            finder.getImplementationAddress(OracleInterfaces.Store)
         );
     }
 }
