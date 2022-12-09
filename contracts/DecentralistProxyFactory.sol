@@ -7,6 +7,9 @@ import "@uma/core/contracts/common/interfaces/AddressWhitelistInterface.sol";
 import "@uma/core/contracts/oracle/implementation/Constants.sol";
 
 contract DecentralistProxyFactory {
+
+    uint64 public minimumLiveness;
+
     address public implementationContract;
 
     address[] public allClones;
@@ -20,11 +23,12 @@ contract DecentralistProxyFactory {
     * @param _implementation The decentraList implementation contract that clones will be based on.
     * @param _finder The address of UMA Finder contract. This is set in the DecentralistProxyFactory constructor.
     */
-    constructor(address _implementation, address _finder) {
+    constructor(address _implementation, address _finder, uint64 _minimumLiveness) {
         require(_finder != address(0), "implementation address can not be empty");
         require(_finder != address(0), "finder address can not be empty");
         implementationContract = _implementation;
         finder = FinderInterface(_finder);
+        minimumLiveness = _minimumLiveness;
         syncWhitelist();
     }
 
@@ -34,18 +38,19 @@ contract DecentralistProxyFactory {
     * @param _title Short title for the list.
     * @param _token The address of the token currency used for this contract. Must be on UMA's collateral whitelist.
     * @param _bondAmount Additional bond required, beyond the final fee.
-    * @param _addReward Reward per address successfully added to the list, paid by the contract to the proposer.
-    * @param _removeReward Reward per address successfully removed from the list, paid by the contract to the proposer.
+    * @param _additionReward Reward per address successfully added to the list, paid by the contract to the proposer.
+    * @param _removalReward Reward per address successfully removed from the list, paid by the contract to the proposer.
     * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours.
-    * @param _owner Owner of the contract can remove funds from the contract and adjust reward rates. Set to the 0 address to make the contract 'public'.
+    * @param _owner Owner of the contract can remove funds from the contract and adjust bondAmount, rewards and liveness. 
+    * Set to the 0 address to make the contract a non-managed public good.
     */
     function createNewDecentralist(
         bytes memory _listCriteria,
         string memory _title,
         address _token,
         uint256 _bondAmount,
-        uint256 _addReward,
-        uint256 _removeReward,
+        uint256 _additionReward,
+        uint256 _removalReward,
         uint64 _liveness,
         address _owner
     ) external returns (address instance) {
@@ -57,15 +62,16 @@ contract DecentralistProxyFactory {
         // initialize new contract
         (bool success, ) = instance.call(
             abi.encodeWithSignature(
-                "initialize(address,bytes,string,address,uint256,uint256,uint256,uint64,address)",
+                "initialize(address,bytes,string,address,uint256,uint256,uint256,uint64,uint64,address)",
                 address(finder),
                 _listCriteria,
 				_title,
 				_token,
 				_bondAmount,
-				_addReward,
-				_removeReward,
+				_additionReward,
+				_removalReward,
                 _liveness,
+                minimumLiveness,
                 _owner
             )
         );
@@ -80,7 +86,7 @@ contract DecentralistProxyFactory {
     /**
     * @notice Returns all instances created.
     */
-	function getAllClones() public view returns(address[] memory) {
+	function getAllClones() external view returns(address[] memory) {
 		return allClones;
 	}
 

@@ -1,41 +1,47 @@
-import React, { useState, createRef, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import axios from "axios";
 import MetaMaskButton from "./metamaskButton";
 import AddressModal from "./addressModal";
 import ListModal from "./listModal";
 import LOGO from "./decentralist.png";
 
 const PROXY_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
-.abi;
+  .abi;
 const FACTORY_ABI = require("../artifacts/contracts/DecentralistProxyFactory.sol/DecentralistProxyFactory.json")
-.abi;
+  .abi;
 const WETH_ABI = require("../public/WETH_ABI.json");
-//TO DO: HAVE CF ADDRESSES FOR MAINNET & GOERLI, PICK BASED ON NETWORK ID FROM WALLET
-const FACTORY_ADDRESS = {
-  Goerli: "0x5Aa73316E9fFdb7461e67f64949b089d3B5ff080",
-  Mainnet: "0xccA9728291bC98ff4F97EF57Be3466227b0eb06C"  //<-- LOCALHOST
-}
-const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/33198/decentralist/v0.1.0";
+const UMA_STORE_ABI = require("../public/UMAStore.json");
 
-//require("dotenv").config();
+const DECENTRALIST_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
+  .abi;
+const EVENT_INTERFACE = new ethers.utils.Interface(DECENTRALIST_ABI);
+const STORE_ADDRESS = {
+  Goerli: "0x07417cA264170Fc5bD3568f93cFb956729752B61",
+  Mainnet: "0x54f44eA3D2e7aA0ac089c4d8F7C93C27844057BF", //<-- LOCALHOST
+};
+const FACTORY_ADDRESS = {
+  Goerli: "0x264A5AF8438806A2d7e61f23fc2B385dB1C2dCba",
+  Mainnet: "0x0898f96352a2ddeb86De0F357E86D8Ddc1D8b4c6",
+};
 
 export default function List() {
   const [proxyAddresses, setProxyAddresses] = useState([]);
   const [currentProxy, setCurrentProxy] = useState();
   const [addressList, setAddressList] = useState();
   const [addressInput, setAddressInput] = useState("");
-  const [bondAmount, setBondAmount] = useState("");
+  const [totalBond, setTotalBond] = useState("");
   const [addReward, setAddReward] = useState("");
   const [removeReward, setRemoveReward] = useState("");
   const [fixedAncillaryData, setFixedAncillaryData] = useState("");
   const [liveness, setLiveness] = useState("");
+  const [livenessUnits, setLivenessUnits] = useState("");
   const [owner, setOwner] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("");
   const [balance, setBalance] = useState("");
-  
+  const [finalFee, setFinalFee] = useState("");
+
   //create list args
   const [listCriteria, setListCriteriaArg] = useState([]);
   const [titleArg, setTitleArg] = useState([]);
@@ -46,6 +52,7 @@ export default function List() {
   const [ownerArg, setOwnerArg] = useState([]);
   const [tokenArg, setTokenArg] = useState([]);
   const [proxyTitles, setProxyTitles] = useState([]);
+  const [finalFeeArg, setFinalFeeArg] = useState("");
 
   //Network variables
   const [userAddress, setUserAddress] = useState("");
@@ -119,8 +126,31 @@ export default function List() {
   const handleOwnerArgChange = (event) => {
     setOwnerArg(event.target.value);
   };
-  const handleTokenArgChange = (event) => {
-    setTokenArg(event.target.value);
+  const handleTokenArgChange = async (event) => {
+    const tokenAddress = event.target.value;
+    setTokenArg(tokenAddress);
+    if (ethers.utils.isAddress(tokenAddress)) {
+      console.log("calc final fee");
+
+      const storeContract = new ethers.Contract(
+        STORE_ADDRESS[network],
+        UMA_STORE_ABI,
+        provider
+      );
+      let finalFee = await storeContract.finalFees(tokenAddress);
+
+      const tokenContract = new ethers.Contract(
+        tokenAddress,
+        WETH_ABI,
+        provider
+      );
+      const decimals = await tokenContract.decimals();
+
+      finalFee = ethers.utils.formatUnits(finalFee.toString(), decimals);
+      console.log("final fee = ", finalFee);
+
+      setFinalFeeArg(finalFee.toString());
+    } else setFinalFeeArg("");
   };
 
   const handleSubmitList = (event) => {
@@ -134,24 +164,22 @@ export default function List() {
   };
 
   const closeListModal = () => {
+    setFinalFeeArg([]);
     setListModalIsOpen(false);
   };
 
   useEffect(() => {
-
     async function startup() {
       await checkIfWalletIsConnected();
       const _network = await checkNetwork();
       const provider = new ethers.providers.Web3Provider(window.ethereum);
-      console.log("_network", _network)
-      console.log("FACTORY_ADDRESS[_network]", FACTORY_ADDRESS[_network])
-    
-      const contract = new ethers.Contract(
+
+      const factoryContract = new ethers.Contract(
         FACTORY_ADDRESS[_network],
         FACTORY_ABI,
         provider
       );
-      const _proxyAddresses = await contract.getAllClones();
+      const _proxyAddresses = await factoryContract.getAllClones();
       const _proxyTitles = _proxyAddresses.map((address) => {
         const proxyContract = new ethers.Contract(address, PROXY_ABI, provider);
         return proxyContract.title();
@@ -187,17 +215,16 @@ export default function List() {
     console.log("checking network");
     const chainId = await window.ethereum.request({ method: "eth_chainId" });
     let _network;
-    console.log("chainId", chainId)
-    if (chainId === "0x7a69") {   //"0x1") { TO DO: SWITCH BACK AFTER TESTING
+    if (chainId === "0x1") {
       _network = "Mainnet";
-    } else if(chainId === "0x5") {
+    } else if (chainId === "0x5") {
       _network = "Goerli";
     } else {
       _network = null;
     }
     setNetwork(_network);
     return _network;
-  }
+  };
 
   const connect = async () => {
     console.log("connecting");
@@ -215,7 +242,7 @@ export default function List() {
   // Get list information functions
 
   const changeList = async (e) => {
-    const index = proxyTitles.indexOf(e.target.value);
+    const index = [Number(e.target.value)];
     setCurrentProxy(proxyAddresses[index]);
     const listContract = new ethers.Contract(
       proxyAddresses[index],
@@ -230,6 +257,11 @@ export default function List() {
       WETH_ABI,
       provider
     );
+    const storeContract = new ethers.Contract(
+      STORE_ADDRESS[network],
+      UMA_STORE_ABI,
+      provider
+    );
 
     const promises = [];
     promises.push(
@@ -241,14 +273,29 @@ export default function List() {
       listContract.owner(),
       tokenContract.balanceOf(proxyAddresses[index]),
       tokenContract.symbol(),
-      tokenContract.decimals()
+      tokenContract.decimals(),
+      storeContract.finalFees(_tokenAddress)
     );
 
     await Promise.all(promises).then((values) => {
-      setFixedAncillaryData(ethers.utils.toUtf8String(values[0]) + "<id#>");
-      setBondAmount(values[1].toString());
+      setFixedAncillaryData(
+        ethers.utils
+          .toUtf8String(values[0])
+          .replace(
+            ". Addresses to query can be found in the pendingAddresses parameter of the RevisionProposed event emitted by the requester's address in the same transaction as the proposed value with Revision ID = ",
+            ""
+          )
+      );
+      setTotalBond(values[1].add(values[9]).toString());
       setAddReward(values[2].toString());
       setRemoveReward(values[3].toString());
+      if (values[4] > 60 * 60) {
+        setLiveness(values[4].div(60 * 60).toString());
+        setLivenessUnits("hours");
+      } else {
+        setLiveness(values[4].toString());
+        setLivenessUnits("seconds");
+      }
       setLiveness(values[4].toString());
       setOwner(values[5]);
       setBalance(values[6].toString());
@@ -257,43 +304,63 @@ export default function List() {
       setTokenAddress(_tokenAddress);
     });
 
-    getAddresses(proxyAddresses[index]);
-  };
+    const _addressList = [];
+    // get revision executed events
+    let queries = await listContract.queryFilter("RevisionExecuted");
 
-  const getAddresses = async (address) => {
-
-    const config = {
-      method: 'post',
-      url: SUBGRAPH_URL,
-      data: {
-        query:`{addressList(id: "${address}") {
-            addresses
+    // loop over all events found
+    queries.forEach((query, i) => {
+      //decode event data
+      const data = EVENT_INTERFACE.decodeEventLog(
+        "RevisionExecuted",
+        query.data
+      );
+      //handle adds
+      if (data.proposedValue.eq(ethers.utils.parseEther("1"))) {
+        data.revisedAddresses.forEach((address) => {
+          if (address !== "0x0000000000000000000000000000000000000000") {
+            const index = _addressList.indexOf(address);
+            if (index === -1) {
+              _addressList.push(address);
             }
-          }`
+          }
+        });
+        // handle removals
+      } else if (data.proposedValue.eq(0)) {
+        data.revisedAddresses.forEach((address) => {
+          if (address !== "0x0000000000000000000000000000000000000000") {
+            const index = _addressList.indexOf(address);
+            if (index !== -1) {
+              _addressList.splice(index, 1);
+            }
+          }
+        });
       }
-    }
-    const result = await axios(config);
-    console.log(result.data.data.addressList.addresses)
-    setAddressList(result.data.data.addressList.addresses)
-  }
+    });
+
+    setAddressList(_addressList);
+  };
 
   // Contract calls
 
   const approveTransfer = async () => {
     const contract = await prepareContract(tokenAddress, WETH_ABI);
-    const approveTx = await contract.approve(currentProxy, bondAmount);
+    await contract.approve(currentProxy, totalBond);
   };
 
   const createList = async () => {
-    const contract = await prepareContract(FACTORY_ADDRESS[network], FACTORY_ABI);
-    const createListTx = await contract.createNewDecentralist(
+    const contract = await prepareContract(
+      FACTORY_ADDRESS[network],
+      FACTORY_ABI
+    );
+    await contract.createNewDecentralist(
       ethers.utils.hexlify(ethers.utils.toUtf8Bytes(listCriteria)),
       titleArg,
       tokenArg,
-      bondAmountArg,
-      addRewardArg,
-      removeRewardArg,
-      livenessArg,
+      ethers.utils.parseUnits(bondAmountArg, tokenDecimals),
+      ethers.utils.parseUnits(addRewardArg, tokenDecimals),
+      ethers.utils.parseUnits(removeRewardArg, tokenDecimals),
+      livenessArg * 60 * 60,
       ownerArg
     );
   };
@@ -328,27 +395,36 @@ export default function List() {
         handleOwnerArgChange={handleOwnerArgChange}
         handleSubmitList={handleSubmitList}
         closeAddressModal={closeAddressModal}
+        finalFeeArg={finalFeeArg}
       />
       <div className="relative px-20">
-        <div className="flex justify-between py-3 border-b-2 border-black z-30">
-          <div className="flex flex-w">
-            <img src={LOGO} alt="logo" width="60" height="25" />
-            <div className="ml-2">
-              <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
-                decentraList
-              </p>
-              <p className="text-xs font-bold">
-                customizable, decentralized, onchain, address lists
-              </p>
+        <div className="flex justify-between py-3 items-center border-b-2 border-black z-30">
+          <div className="">
+            <div className="flex flex-w">
+              <img src={LOGO} alt="logo" width="90" height="25" />
+              <div>
+                <div className="ml-2">
+                  <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
+                    decentraList
+                  </p>
+                  <p className="text-xs font-bold">
+                    customizable, decentralized, onchain, address lists
+                  </p>
+                </div>
+                <p className="font-bold font-sans text-xs text-red-500 ml-2 mt-2">
+                  *alpha unaudited version deployed to Mainnet & Goerli
+                </p>
+              </div>
             </div>
           </div>
-          <MetaMaskButton 
-          connect={connect}
-          network={network}
-          userAddress={userAddress}
+          <MetaMaskButton
+            connect={connect}
+            network={network}
+            userAddress={userAddress}
           />
         </div>
-          {connected? (<>
+
+        <>
           <div className="flex flew-w justify-between items-center">
             <form className="my-3">
               <label>
@@ -366,7 +442,9 @@ export default function List() {
                     Select a List
                   </option>
                   {proxyTitles.map((title, i) => (
-                    <option value={title} key={i}>{title}</option>
+                    <option value={i} key={i}>
+                      {title}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -389,8 +467,10 @@ export default function List() {
             <a
               className="cursor-pointer pl-1 font-semibold"
               href={`https://goerli.etherscan.io/address/${currentProxy}`}
+              target="_blank"
+              rel="noreferrer"
             >
-              {currentProxy? currentProxy + "🡕" : ""}
+              {currentProxy ? currentProxy + "🡕" : ""}
             </a>
           </div>
           <div className="flex rounded-lg bg-white px-4 py-2 mb-2 shadow sm:p-2">
@@ -400,29 +480,31 @@ export default function List() {
             <a
               className="cursor-pointer pl-1 font-semibold"
               href={`https://goerli.etherscan.io/address/${owner}`}
+              target="_blank"
+              rel="noreferrer"
             >
-              {owner? owner + "🡕" : ""}
+              {owner ? owner + "🡕" : ""}
             </a>
           </div>
           <div>
             <dl className="mt-5 grid grid-cols-1 gap-10 sm:grid-cols-5 text-center">
               <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
                 <dt className="truncate text-sm font-medium text-gray-500">
-                  Oracle Bond
+                  Total Bond
                 </dt>
                 <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                  {bondAmount
-                    ? ethers.utils.formatUnits(bondAmount, tokenDecimals)
+                  {totalBond
+                    ? ethers.utils.formatUnits(totalBond, tokenDecimals)
                     : ""}{" "}
                   {tokenSymbol}
                 </dd>
               </div>
               <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
                 <dt className="truncate text-sm font-medium text-gray-500">
-                  Oracle Liveness{" "}
+                  Liveness Period{" "}
                 </dt>
                 <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                  {liveness? liveness + " sec" : ""}
+                  {liveness ? liveness + " " + livenessUnits : ""}
                 </dd>
               </div>
               <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
@@ -460,9 +542,9 @@ export default function List() {
               </div>
             </dl>
             <dl className="mt-5 flex items-center justify-left">
-              <div className="overflow-hidden rounded-lg bg-white px-4 shadow sm:p-4 text-left">
+              <div className="overflow-hidden rounded-lg bg-white px-4 shadow sm:p-4 text-left w-full">
                 <dt className="truncate text-sm font-medium text-gray-500">
-                  Ancillary Data:
+                  List Criteria:
                 </dt>
                 <dd className="mt-1 text tracking-tight text-black">
                   {fixedAncillaryData}
@@ -472,7 +554,9 @@ export default function List() {
           </div>
           <div className="flex flex-w justify-between my-2">
             <div>
-              <dt className="truncate text-xl font-medium mt-8">Addresses ({addressList ? addressList.length : ""}):</dt>
+              <dt className="truncate text-xl font-medium mt-8">
+                Addresses ({addressList ? addressList.length : ""}):
+              </dt>
             </div>
             <div className="my-2">
               <button
@@ -494,33 +578,32 @@ export default function List() {
           <div className="overflow-hidden rounded-lg bg-black px-4 shadow text-left grid grid-cols-2">
             <div>
               <ul className="py-2">
-                {addressList?
-                  addressList.slice(0, Math.ceil(addressList.length / 2))
-                  .map((address) => (
-                    <li key={address} className="font-mono text-white">
-                      {address},
-                    </li>
-                  ))
-                : ""
-                }
+                {addressList
+                  ? addressList
+                      .slice(0, Math.ceil(addressList.length / 2))
+                      .map((address) => (
+                        <li key={address} className="font-mono text-white">
+                          {address},
+                        </li>
+                      ))
+                  : ""}
               </ul>
             </div>
             <div>
               <ul className="py-2">
-                {addressList?
-                addressList
-                  .slice(Math.ceil(addressList.length / 2))
-                  .map((address) => (
-                    <li key={address} className="font-mono text-white">
-                      {address},
-                    </li>
-                  ))
-                  : ""
-                  }
+                {addressList
+                  ? addressList
+                      .slice(Math.ceil(addressList.length / 2))
+                      .map((address) => (
+                        <li key={address} className="font-mono text-white">
+                          {address},
+                        </li>
+                      ))
+                  : ""}
               </ul>
             </div>
           </div>
-        </>) : ""}
+        </>
       </div>
     </div>
   );

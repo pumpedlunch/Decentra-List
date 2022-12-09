@@ -14,6 +14,7 @@ export default function List({
   handleOwnerArgChange,
   handleSubmitList,
   closeAddressModal,
+  finalFeeArg
 }) {
   const ancillaryDataInputRef = useRef(null);
 
@@ -79,27 +80,27 @@ export default function List({
                       className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
                       onChange={handleOwnerArgChange}
                     ></input>
-                    <p>Bond Amount</p>
+                    <p>Bond (Final Fee + Bond = Total Bond)</p>
                     <input
-                      placeholder="integer in lowest denomination"
+                      placeholder={finalFeeArg? `ie 7.5 (${finalFeeArg} min)` : "ie 7.5"}
                       className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
                       onChange={handleBondAmountArgChange}
                     ></input>
-                    <p>Add Reward</p>
+                    <p>Addition Reward</p>
                     <input
-                      placeholder="integer in lowest denomination"
+                      placeholder="ie 5.0"
                       className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
                       onChange={handleAddRewardArgChange}
                     ></input>
-                    <p>Remove Reward</p>
+                    <p>Removal Reward</p>
                     <input
-                      placeholder="integer in lowest denomination"
+                      placeholder="ie 2.5"
                       className="border border-gray-400 w-[360px] h-10 rounded-lg mb-6 p-2"
                       onChange={handleRemoveRewardArgChange}
                     ></input>
                     <p>Liveness Period</p>
                     <input
-                      placeholder="seconds"
+                      placeholder="8 hours min."
                       className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
                       onChange={handleLivenessArgChange}
                     ></input>

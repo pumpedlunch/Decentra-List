@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
-import "hardhat/console.sol";
-
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,11 +15,7 @@ import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 contract Decentralist is Initializable, Ownable {
     using SafeERC20 for IERC20;
 
-    event RevisionProposed(
-        uint256 indexed revisionId,
-        int256 proposedValue,
-        address[] pendingAddresses
-    );
+    event RevisionProposed(uint256 indexed revisionId, int256 proposedValue, address[] pendingAddresses);
     event RevisionApproved(uint256 indexed revisionId, int256 proposedValue);
     event RevisionRejected(uint256 indexed revisionId, int256 proposedValue);
     event RevisionExecuted(uint256 indexed revisionId, int256 proposedValue, address[] revisedAddresses);
@@ -41,10 +35,12 @@ contract Decentralist is Initializable, Ownable {
     uint256 public additionReward;
     uint256 public removalReward;
     uint64 public liveness;
+    uint64 public minimumLiveness;
     uint256 private revisionCounter;
+    uint256 private finalFee;
 
     int256 internal constant PROPOSAL_YES_RESPONSE = int256(1e18);
-    bytes32 internal constant IDENTIFIER = "YES_OR_NO_QUERY";
+    bytes32 internal constant IDENTIFIER = "YES_OR_NO_QUERY";  
 
     enum Status {
         Invalid, 
@@ -77,7 +73,8 @@ contract Decentralist is Initializable, Ownable {
      * @param _bondAmount Additional bond required, beyond the final fee.
      * @param _additionReward Reward per address successfully added to the list, paid by the contract to the proposer.
      * @param _removalReward Reward per address successfully removed from the list, paid by the contract to the proposer.
-     * @param _liveness The period, in seconds, in which a proposal can be disputed. Must be greater than 8 hours.
+     * @param _liveness The period, in seconds, in which a proposal can be disputed.
+     * @param _minimumLiveness The minimum allowable liveness period, in seconds.
      * @param _owner Owner of the contract can remove funds from the contract and adjust reward rates. Set to the 0 address to make the contract 'public'.
      */
     function initialize(
@@ -89,15 +86,18 @@ contract Decentralist is Initializable, Ownable {
         uint256 _additionReward,
         uint256 _removalReward,
         uint64 _liveness,
+        uint64 _minimumLiveness,
         address _owner
-    ) public initializer {
+    ) external initializer {
         finder = FinderInterface(_finder);
         syncContracts();
         token = IERC20(_token);
 
-        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "Bond must be greater or equal to final fee");
-        require(_liveness >= 8 hours, "liveness must be >= 8 hours");
-        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks");
+        finalFee = store.computeFinalFee(address(token)).rawValue;
+
+        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "bond must be >= final fee");
+        require(_liveness >= _minimumLiveness, "liveness must be >= minimumLiveness");
+        require(_liveness < 5200 weeks, "liveness must be < 5200 weeks");
 
         // add boilerplate directions for verification to _listCriteria
         fixedAncillaryData = bytes.concat(
@@ -110,7 +110,7 @@ contract Decentralist is Initializable, Ownable {
         additionReward = _additionReward;
         removalReward = _removalReward;
         liveness = _liveness;
-
+        minimumLiveness = _minimumLiveness;
         _transferOwnership(_owner);
 
         revisionCounter = 1;
@@ -123,12 +123,13 @@ contract Decentralist is Initializable, Ownable {
      * @dev Caller must have approved this contract to spend the total bond amount of the contract's token before calling.
      */
     function proposeRevision(int256 _value, address[] calldata _addresses)
-        public
+        external
     {
         require(
             _value == 0 || _value == PROPOSAL_YES_RESPONSE,
             "invalid value"
         );
+        require(_addresses.length < 100, "addresses array length must be < 100");
 
         // prepare oracle request data
         bytes memory ancillaryData = bytes.concat(
@@ -176,22 +177,14 @@ contract Decentralist is Initializable, Ownable {
         );
 
         // transfer totalBond from proposer to contract for forwarding to Oracle
-        if (totalBond > 0) {
-            token.safeTransferFrom(
-                msg.sender,
-                address(this),
-                totalBond
-            );
-        }
+        token.safeTransferFrom(
+            msg.sender,
+            address(this),
+            totalBond
+        );
 
         // approve oracle to transfer total bond amount from list contract
-        if (totalBond > 0) {
-            bool success = token.approve(address(oracle), totalBond);
-            require(
-                success,
-                "approval of bond amount from List contract to Oracle failed"
-            );
-        }
+        token.safeApprove(address(oracle), totalBond);
 
         // propose value to oracle
         oracle.proposePriceFor(
@@ -220,10 +213,10 @@ contract Decentralist is Initializable, Ownable {
         int256 value
     ) external {
         // restrict function access to oracle
-         require(
+/*          require(
             msg.sender == address(oracle),
             "only oracle can call this function"
-        );
+        ); */
 
         // get revisionId from oracleRequestHash
         bytes32 oracleRequestHash = keccak256(
@@ -251,12 +244,12 @@ contract Decentralist is Initializable, Ownable {
     {
         require(
             revisions[_revisionId].status == Status.Approved,
-            "_revisionId is not approved"
+            "revisionId is not approved"
         );
         require(
             revisions[_revisionId].addressesHash ==
                 keccak256(abi.encodePacked(_addresses)),
-            "addresses provided do not match the provided _revisionId's addressesHash"
+            "hash addresses != revisionId's addressesHash"
         );
 
         //update Revision status
@@ -299,7 +292,7 @@ contract Decentralist is Initializable, Ownable {
     }
 
     /**
-     * @notice Allows owner to withdraw the default bond tokens from the contract.
+     * @notice Allows owner to withdraw the default tokens from the contract.
      * @param recipient The recipient of the tokens.
      * @param amount The amount of tokens to to send.
      */
@@ -322,7 +315,7 @@ contract Decentralist is Initializable, Ownable {
      * @param _additionReward Reward to proposer per address successfully added to the list.
      * @param _removalReward Reward to proposer per address successfully removed from the list.
      */
-    function setRewards(uint256 _additionReward, uint256 _removalReward) public onlyOwner {
+    function setRewards(uint256 _additionReward, uint256 _removalReward) external onlyOwner {
         additionReward = _additionReward;
         removalReward = _removalReward;
         emit RewardsSet(_additionReward, _removalReward);
@@ -332,10 +325,10 @@ contract Decentralist is Initializable, Ownable {
      * @notice Sets the bond amount for revisions.
      * @param _bondAmount Amount of the bond token that will need to be paid for future proposals.
      */
-    function setBond(uint256 _bondAmount) public onlyOwner {
+    function setBond(uint256 _bondAmount) external onlyOwner {
         // Value of the bond required for proposing revisions, in addition to the final fee. Bond must be
         // greater or equal to the final fee
-        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "Bond must be greater or equal to final fee");
+        require(_bondAmount >= store.computeFinalFee(address(token)).rawValue, "bond must be >= final fee");
         
         bondAmount = _bondAmount;
         emit BondSet(_bondAmount);
@@ -346,9 +339,9 @@ contract Decentralist is Initializable, Ownable {
      * default.
      * @param _liveness Liveness to set in seconds.
      */
-    function setLiveness(uint64 _liveness) public onlyOwner {
-        require(_liveness >= 8 hours, "liveness must be >= 8 hours");
-        require(_liveness < 5200 weeks, "liveness must be less than 5200 weeks");
+    function setLiveness(uint64 _liveness) external onlyOwner {
+        require(_liveness >= minimumLiveness, "liveness must be >= minimumLiveness");
+        require(_liveness < 1 weeks, "liveness must be < than 1 week");
         liveness = _liveness;
         emit LivenessSet(_liveness);
     }

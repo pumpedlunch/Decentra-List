@@ -1,0 +1,7 @@
+Mainnet:
+-Decentralist: 0x1053fe820b68D71b2a3cE4565b285B6bDAbAaF74
+-DecentralistProxyFactory: 0x0898f96352a2ddeb86De0F357E86D8Ddc1D8b4c6
+
+Goerli:
+-Decentralist: 0xD97502114deebe33f8BEc2C6fD200F8B7FdD231b
+-DecentralistProxyFactory: 0x264A5AF8438806A2d7e61f23fc2B385dB1C2dCba

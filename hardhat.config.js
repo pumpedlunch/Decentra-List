@@ -1,19 +1,32 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("@nomiclabs/hardhat-etherscan");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.17",
+  solidity: {
+    version: "0.8.17",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000,
+      },
+    },
+  },
   defaultNetwork: "goerli",
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MAINNET_URL , // GOERLI_URL
-        blockNumber: 16099000 // 7976387 goerli
+        url: process.env.MAINNET_URL ,
+        blockNumber: 16099000
       }
     },
     goerli: {
       url: process.env.GOERLI_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    mainnet: {
+      url: process.env.MAINNET_URL,
       accounts: [process.env.PRIVATE_KEY],
     }
   },
