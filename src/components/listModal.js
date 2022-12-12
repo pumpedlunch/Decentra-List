@@ -13,8 +13,9 @@ export default function List({
   handleRemoveRewardArgChange,
   handleOwnerArgChange,
   handleSubmitList,
-  closeAddressModal,
-  finalFeeArg
+  finalFeeArg,
+  symbolArg,
+  minLivenessArg,
 }) {
   const ancillaryDataInputRef = useRef(null);
 
@@ -49,59 +50,114 @@ export default function List({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-10/12 max-w-md transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all">
-                <div className="text-lg font-semibold tracking-tight text-gray-800">
+              <Dialog.Panel className="w-10/12 max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all">
+                <div className="tracking-tight text-gray-800">
                   <h1 className="pt-8 pb-2 mb-4 px-8 text-3xl border-b-2 bg-[#F7F0E8]">
                     Create List
                   </h1>
                   <div className="px-8">
-                    <p>Title</p>
+                    <p className="text-lg font-semibold">Title</p>
+                    <p className="text-sm">Short descriptive title</p>
                     <input
-                      placeholder="text"
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      placeholder="X Blackhat Hackers"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleTitleArgChange}
                     ></input>
-                    <p>List Critera</p>
+                    <p className="text-lg font-semibold">List Criteria</p>
+                    <p className="text-sm">
+                      Publicly verifiable criteria for address inclusion on list
+                    </p>
                     <input
                       ref={ancillaryDataInputRef}
-                      placeholder="text"
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      placeholder="The following addresses stole tokens from..."
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleListCriteriaArgChange}
                     ></input>
-                    <p>Token Address</p>
+                    <p className="text-lg font-semibold">Token Address</p>
+                    <p className="text-sm">Token used for bonds and rewards</p>
+                    <div className="flex flex-row">
+                      <p className="text-sm">
+                        May be any UMA approved collateral:
+                      </p>
+                      <a
+                        className="text-sm text-blue-500 ml-1"
+                        href="https://docs.umaproject.org/resources/approved-collateral-types"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Mainnet
+                      </a>
+                      <p className="text-sm ml-1"> | </p>
+                      <a
+                        className="text-sm text-blue-500 ml-1"
+                        href="https://goerli.etherscan.io/address/0x63fDfF29EBBcf1a958032d1E64F7627c3C98A059#readContract#F1"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Goerli
+                      </a>
+                    </div>
                     <input
                       placeholder="0x..."
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleTokenArgChange}
                     ></input>
-                    <p>Owner Address</p>
+                    <p className="text-lg font-semibold">Owner Address</p>
+                    <p className="text-sm">
+                      Owner can adjust bond/liveness/rewards and withdraw funds
+                    </p>
                     <input
                       placeholder="0x..."
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleOwnerArgChange}
                     ></input>
-                    <p>Bond (Final Fee + Bond = Total Bond)</p>
+                    <p className="text-lg font-semibold">Bond</p>
+                    <p className="text-sm">
+                      Amount added to UMA's final fee to calculate total bond
+                    </p>
+                    {finalFeeArg? (
+                      <p className="text-sm">
+                      Must be >= final fee. Final fee = {finalFeeArg}{" "}
+                      {symbolArg}
+                    </p>
+                    ) : (
+                      <p className="text-sm">
+                      Must be >= final fee.
+                    </p>
+                    )}
                     <input
-                      placeholder={finalFeeArg? `ie 7.5 (${finalFeeArg} min)` : "ie 7.5"}
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      placeholder="7.5"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleBondAmountArgChange}
                     ></input>
-                    <p>Addition Reward</p>
+                    <p className="text-lg font-semibold">Addition Reward</p>
+                    <p className="text-sm">
+                      Reward paid to proposer for successfully adding 1 address
+                      to the list
+                    </p>
                     <input
-                      placeholder="ie 5.0"
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      placeholder="5.0"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleAddRewardArgChange}
                     ></input>
-                    <p>Removal Reward</p>
+                    <p className="text-lg font-semibold">Removal Reward</p>
+                    <p className="text-sm">
+                      Reward paid to proposer for successfully removing 1
+                      address from the list
+                    </p>
                     <input
-                      placeholder="ie 2.5"
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-6 p-2"
+                      placeholder="2.5"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-6 p-2"
                       onChange={handleRemoveRewardArgChange}
                     ></input>
-                    <p>Liveness Period</p>
+                    <p className="text-lg font-semibold">Liveness Period</p>
+                    <p className="text-sm">
+                      Oracle dispute window for revisions to the list in
+                      seconds. Minimum = {minLivenessArg} second(s)
+                    </p>
                     <input
-                      placeholder="8 hours min."
-                      className="border border-gray-400 w-[360px] h-10 rounded-lg mb-3 p-2"
+                      placeholder="3600"
+                      className="border border-gray-400 w-full h-10 rounded-lg mb-3 p-2"
                       onChange={handleLivenessArgChange}
                     ></input>
                     <button

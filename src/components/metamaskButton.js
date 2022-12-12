@@ -1,39 +1,42 @@
 import React from "react";
 
-export default function MetaMaskButton({
-  network, userAddress, connect
-}) {
- 
+const NETWORKS = {
+  "0x1": "Ethereum",
+  "0x5": "Goerli",
+};
 
+export default function MetaMaskButton({
+  chainId,
+  selectedNetwork,
+  userAddress,
+  connectMetamask,
+  changeMetamaskChainId,
+}) {
   return (
     <>
-      {network === null? (
-        <div
-          className="bg-red-300 p-1 mt-2 rounded-md w-40 h-14 border border-4 border-red-500 text-center"
-          >
-          <p className="text-sm font-bold">Change to Mainnet or Goerli</p>
-      </div>
-      ) : (
-        <>{userAddress ? (
-            <div className="bg-slate-300 rounded-md w-40 h-12 h-14 mt-2 text-sm text-center">
-              <p className="mt-2 text-sm font-bold truncate max-w-[155px] ">
-                Connected
-              </p>
-              <p className="text-sm font-bold truncate max-w-[155px] pl-2">
-                {network} - {userAddress}
-              </p>
+      {userAddress ? (
+        <>
+          {chainId ? (
+            <div className="bg-slate-300 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right">
+              <p className="">Connected</p>
+              <p className="truncate px-2">{userAddress}</p>
             </div>
-        ) : (
-          <div>
+          ) : (
             <button
-              className="bg-blue-300 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right"
-              onClick={() => connect()}
-              >
-              Connect
+              className="bg-red-500 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right"
+              onClick={() => changeMetamaskChainId()}
+            >
+              Change to {NETWORKS[selectedNetwork]}
             </button>
-          </div>
-        )}
-      </>
+          )}
+        </>
+      ) : (
+        <button
+          className="bg-blue-300 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right"
+          onClick={() => connectMetamask()}
+        >
+          Connect
+        </button>
       )}
     </>
   );
