@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uma/core/contracts/oracle/interfaces/StoreInterface.sol";
 import "@uma/core/contracts/oracle/interfaces/OptimisticOracleV2Interface.sol";
 
-abstract contract Decentralist is Initializable, Ownable {
+abstract contract DecentralistInterface is Initializable, Ownable {
     using SafeERC20 for IERC20;
 
     event RevisionProposed(
