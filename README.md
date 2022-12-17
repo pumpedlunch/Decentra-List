@@ -2,6 +2,6 @@ Decentralist is dev tool that allows for creating and updating onchain, lists of
 
 Dapp is currently dpleoyed here: https://decentralist-alpha.vercel.app/
 
-Alpha unaudited contracts are deployed to Mainnet and Goerli. See ```deployedAddresses.txt``` for address of deployed contracts.
+Alpha unaudited contracts are deployed to Mainnet and Goerli. See ```public/deployedAddresses.txt``` for address of deployed contracts.
 
 Contact: https://twitter.com/pumpedlunch
