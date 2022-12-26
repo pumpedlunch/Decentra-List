@@ -2,10 +2,10 @@ const hre = require("hardhat");
 const { ethers } = require("hardhat");
 const { expect, assert, anyValue } = require("chai");
 
-const WETH_ABI = require("../public/abis/WETH.json");
+const WETH_ABI = require("./abis/WETH.json");
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; //mainnet
 const FINDER_ADDRESS = "0x40f941E48A552bF496B154Af6bf55725f18D77c3"; //mainnet
-const UNI_SWAP_ROUTER_ABI = require("../public/abis/UniswapV3SwapRouter.json");
+const UNI_SWAP_ROUTER_ABI = require("./abis/UniswapV3SwapRouter.json");
 const UNI_SWAP_ROUTER_ADDRESS = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
 const { providers } = require("ethers");
 const {
@@ -13,11 +13,11 @@ const {
 } = require("@nomicfoundation/hardhat-network-helpers");
 const DECENTRALIST_ABI = require("../src/artifacts/contracts/Decentralist.sol/Decentralist.json")
   .abi;
-const OOV2_ABI = require("../public/abis/OptimisticOracleV2.json");
+const OOV2_ABI = require("./abis/OptimisticOracleV2.json");
 const { default: Ethers } = require("@typechain/ethers-v5");
 const OOV2_ADDRESS = "0xa0ae6609447e57a42c51b50eae921d701823ffae"; //mainnet
 const OOV2Interface = new ethers.utils.Interface(OOV2_ABI);
-const UMA_STORE_ABI = require("../public/abis/UMAStore.json");
+const UMA_STORE_ABI = require("./abis/UMAStore.json");
 // all tokens on UMA's mainnet whitelist
 const MAINNET_TOKENS = [
   "0x6B175474E89094C44Da98b954EedeAC495271d0F",

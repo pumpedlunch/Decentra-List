@@ -4,6 +4,7 @@ import MetaMaskButton from "./metamaskButton";
 import AddressModal from "./addressModal";
 import ListModal from "./listModal";
 import LOGO from "./decentralist.png";
+import ARROW from "./dropdown_arrow.png";
 
 const PROXY_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
   .abi;
@@ -41,6 +42,10 @@ export default function List() {
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("");
   const [balance, setBalance] = useState("");
+  const [pendingRevisions, setPendingRevisions] = useState([]);
+  const [approvedRevisions, setApprovedRevisions] = useState([]);
+  const [pendingRevisionsIsOpen, setPendingRevisionsIsOpen] = useState(false);
+  const [approvedRevisionsIsOpen, setApprovedRevisionsIsOpen] = useState(false);
 
   //create list args
   const [listCriteria, setListCriteriaArg] = useState([]);
@@ -177,8 +182,19 @@ export default function List() {
       });
       setChainId(selectedNetwork);
       getLists(selectedNetwork);
+
+      //reset list state
+      setCurrentProxy("");
+      setOwner("");
+      setTotalBond("");
+      setLiveness("");
+      setAddReward("");
+      setRemoveReward("");
+      setBalance("");
+      setTokenSymbol("");
+      setFixedAncillaryData("");
+      setAddressList();
     } catch (error) {
-      console.log("ERRORRRRRRRRRR");
       console.log(error);
     }
   };
@@ -253,6 +269,8 @@ export default function List() {
       setTokenAddress(_tokenAddress);
     });
 
+    // build list of addresses
+
     const _addressList = [];
     // get revision executed events
     let queries = await listContract.queryFilter("RevisionExecuted");
@@ -286,8 +304,57 @@ export default function List() {
         });
       }
     });
-
     setAddressList(_addressList);
+
+    //get revision statuses & store pending (status = 1) and approved revisions (status = 2)
+    const _pendingRevisions = [];
+    const _approvedRevisions = [];
+    let status;
+    let revisionId = 1;
+
+    do {
+      let proposer, proposedValue;
+      [proposer, , proposedValue, status] = await listContract.revisions(
+        revisionId
+      );
+
+      if (status === 1 || status === 2) {
+        // get pendingAddresses
+        const filter = listContract.filters.RevisionProposed(revisionId);
+        const event = await listContract.queryFilter(filter);
+
+        //decode event data
+        const data = EVENT_INTERFACE.decodeEventLog(
+          "RevisionProposed",
+          event[0].data
+        );
+        if (status === 1) {
+          _pendingRevisions.push({
+            revisionId: revisionId,
+            proposedValue: ethers.utils.formatEther(proposedValue),
+            pendingAddresses: data.pendingAddresses
+              .toString()
+              .replaceAll(",", ", "),
+            oracleURL:
+              "https://testnet.oracle.umaproject.org/request?transactionHash=" +
+              event[0].transactionHash +
+              "&chainId=" +
+              chainId.replace("0x", "") +
+              "&oracleType=OptimisticV2&eventIndex=0",
+          });
+        } else if (status === 2) {
+          _approvedRevisions.push({
+            revisionId: revisionId,
+            proposer: proposer,
+            pendingAddresses: data.pendingAddresses,
+          });
+        }
+      }
+      revisionId++;
+    } while (status !== 0);
+
+    setPendingRevisions(_pendingRevisions);
+    setApprovedRevisions(_approvedRevisions);
   };
 
   // -----Add/Remove Addresses modal functions-----
@@ -307,8 +374,12 @@ export default function List() {
     if (isAdd) price = (1e18).toString();
     const arrayArg = addressInput.replaceAll(" ", "").split(",");
 
-    const contract = await prepareContract(currentProxy, PROXY_ABI);
-    await contract.proposeRevision(price, arrayArg);
+    try {
+      const contract = await prepareContract(currentProxy, PROXY_ABI);
+      await contract.proposeRevision(price, arrayArg);
+    } catch (error) {
+      alert(error);
+    }
 
     closeAddressModal();
   };
@@ -417,15 +488,28 @@ export default function List() {
       FACTORY_ADDRESS[chainId],
       FACTORY_ABI
     );
-    await contract.createNewDecentralist(
-      ethers.utils.hexlify(ethers.utils.toUtf8Bytes(listCriteria)),
-      titleArg,
-      tokenArg,
-      ethers.utils.parseUnits(bondAmountArg, tokenDecimals),
-      ethers.utils.parseUnits(addRewardArg, tokenDecimals),
-      ethers.utils.parseUnits(removeRewardArg, tokenDecimals),
-      livenessArg,
-      ownerArg
+    try {
+      await contract.createNewDecentralist(
+        ethers.utils.hexlify(ethers.utils.toUtf8Bytes(listCriteria)),
+        titleArg,
+        tokenArg,
+        ethers.utils.parseUnits(bondAmountArg, tokenDecimals),
+        ethers.utils.parseUnits(addRewardArg, tokenDecimals),
+        ethers.utils.parseUnits(removeRewardArg, tokenDecimals),
+        livenessArg,
+        ownerArg
+      );
+    } catch (error) {
+      alert(error);
+    }
+  };
+
+  const executeRevision = async (i) => {
+    console.log(i);
+    const contract = await prepareContract(currentProxy, PROXY_ABI);
+    await contract.executeRevision(
+      approvedRevisions[i].revisionId,
+      approvedRevisions[i].pendingAddresses
     );
   };
 
@@ -437,7 +521,7 @@ export default function List() {
   };
 
   return (
-    <div className="bg-gradient-to-t from-gray-200 h-full min-h-[750px]">
+    <div className="bg-gray-200">
       <AddressModal
         isOpen={addressModalIsOpen}
         closeModal={closeAddressModal}
@@ -463,7 +547,7 @@ export default function List() {
         symbolArg={symbolArg}
         minLivenessArg={minLivenessArg}
       />
-      <div className="relative px-20">
+      <div className="relative px-20 min-h-screen w-screen">
         <div className="flex justify-between py-3 items-center border-b-2 border-black z-30">
           <div className="">
             <div className="flex flex-w">
@@ -480,11 +564,19 @@ export default function List() {
                 <div className="flex flex-w">
                   <a
                     className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
-                    href="https://github.com/pumpedlunch/decentraList"
+                    href="https://decentralist.gitbook.io/docs/"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Github🡕
+                    Docs🡕
+                  </a>
+                  <a
+                    className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
+                    href="https://twitter.com/pumpedlunch"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Contact🡕
                   </a>
                   <p className="font-bold font-sans text-xs text-red-500 ml-4 mt-2">
                     *alpha unaudited version deployed to Mainnet & Goerli
@@ -528,11 +620,13 @@ export default function List() {
                         disabled
                         hidden
                       >
-                        {proxyTitles[0]? "Select a List" : "No lists created yet"}
+                        {proxyTitles[0]
+                          ? "Select a List"
+                          : "No lists created yet"}
                       </option>
                       {proxyTitles.map((title, i) => (
                         <option value={i} key={i}>
-                          {title}
+                          {`${proxyAddresses[i].slice(0, 6)}... ${title}`}
                         </option>
                       ))}
                     </select>
@@ -549,7 +643,7 @@ export default function List() {
                 </div>
               </div>
 
-              <div className="flex rounded-lg bg-white px-4 py-2 mb-2 shadow sm:p-2">
+              <div className="flex rounded-lg bg-white px-4 py-2 mb-4 shadow sm:p-2">
                 <div className="flex flex-col ">
                   <p className="font-medium text-gray-500">Contract Address:</p>
                 </div>
@@ -630,7 +724,7 @@ export default function List() {
                     </dd>
                   </div>
                 </dl>
-                <dl className="mt-5 flex items-center justify-left">
+                <dl className="mt-4 flex items-center justify-left">
                   <div className="overflow-hidden rounded-lg bg-white px-4 shadow sm:p-4 text-left w-full">
                     <dt className="truncate text-sm font-medium text-gray-500">
                       List Criteria:
@@ -641,27 +735,191 @@ export default function List() {
                   </div>
                 </dl>
               </div>
+
+              <div class="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit">
+                <dt className="truncate font-medium mx-2">
+                  <button
+                    class="w-full"
+                    onClick={() => {
+                      setPendingRevisionsIsOpen((prev) => !prev);
+                    }}
+                  >
+                    <div class="justify-between flex flex-row">
+                      <div class="w-[350px] text-left">
+                        Pending Revisions with Oracle (
+                        {pendingRevisions ? pendingRevisions.length : ""})
+                      </div>
+                      {pendingRevisionsIsOpen ? (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          class="rotate-180"
+                        />
+                      ) : (
+                        <img src={ARROW} alt="logo" width="25" class="ml-2" />
+                      )}
+                    </div>
+                  </button>
+                </dt>
+                {pendingRevisionsIsOpen ? (
+                  <table class="table-fixed w-[750px] mt-2 content-center mx-2">
+                    <thead>
+                      <tr>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Revision ID
+                        </th>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Proposed Value
+                        </th>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                          Pending Addresses
+                        </th>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Oracle
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRevisions.map((revision) => (
+                        <tr>
+                          <td class="border border-slate-300 text-center align-top py-2">
+                            {revision.revisionId}
+                          </td>
+                          <td class="border border-slate-300 text-center align-top py-2">
+                            {revision.proposedValue}
+                          </td>
+                          <td class="border border-slate-300 align-top pl-2 py-2">
+                            {revision.pendingAddresses}
+                          </td>
+                          <td class="border border-slate-300 text-center align-top py-2">
+                            <a
+                              class="cursor-pointer font-bold font-sans
+                             text-underline bg-blue-300 rounded-lg px-3 py-1 my-2"
+                              href={revision.oracleURL}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              🡕
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  ""
+                )}
+              </div>
+              <div class="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit ">
+                <dt className="truncate font-medium mx-2">
+                  <button
+                    class="w-full"
+                    onClick={() => {
+                      setApprovedRevisionsIsOpen((prev) => !prev);
+                    }}
+                  >
+                    <div class="justify-between flex flex-row">
+                      <div class="w-[350px] text-left">
+                        Approved Revisions for Execution (
+                        {approvedRevisions ? approvedRevisions.length : ""})
+                      </div>
+                      {approvedRevisionsIsOpen ? (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          class="rotate-180"
+                        />
+                      ) : (
+                        <img src={ARROW} alt="logo" width="25" class="ml-2" />
+                      )}
+                    </div>
+                  </button>
+                </dt>
+                {approvedRevisionsIsOpen ? (
+                  <table class="table-fixed w-[750px] rounded-lg bg-white shadow sm:p-2 mt-2 mx-2">
+                    <thead>
+                      <tr>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Revision ID
+                        </th>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                          Proposer
+                        </th>
+                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedRevisions.map((revision, i) => (
+                        <tr>
+                          <td class="border border-slate-300 text-center align-top align-middle">
+                            {revision.revisionId}
+                          </td>
+                          <td class="border border-slate-300 text-center align-top px-2 align-middle">
+                            {revision.proposer}
+                          </td>
+                          <td class="border border-slate-300 text-center align-top">
+                            <button
+                              type="button"
+                              className="items-center rounded-md bg-[#ace4aa] px-3 py-2 my-2 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              value={i}
+                              onClick={(e) => executeRevision(e.target.value)}
+                            >
+                              Execute
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  ""
+                )}
+              </div>
+
               <div className="flex flex-w justify-between my-2">
                 <div>
-                  <dt className="truncate text-xl font-medium mt-8">
-                    Addresses ({addressList ? addressList.length : ""}):
+                  <dt className="truncate text-xl font-medium mt-6">
+                    Addresses on List ({addressList ? addressList.length : ""}):
                   </dt>
                 </div>
-                <div className="my-2">
-                  <button
-                    type="button"
-                    className="items-center rounded-md bg-[#ace4aa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    onClick={() => openAddressModal(true)}
-                  >
-                    Add Addresses
-                  </button>
-                  <button
-                    type="button"
-                    className="ml-2 items-center rounded-md bg-[#e4aeaa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    onClick={() => openAddressModal(false)}
-                  >
-                    Remove Addresses
-                  </button>
+                <div className="mt-2">
+                  {currentProxy ? (
+                    <>
+                      <button
+                        type="button"
+                        className="items-center rounded-md bg-[#ace4aa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(true)}
+                      >
+                        Add Addresses
+                      </button>
+                      <button
+                        type="button"
+                        className="ml-2 items-center rounded-md bg-[#e4aeaa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(false)}
+                      >
+                        Remove Addresses
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(true)}
+                      >
+                        Add Addresses
+                      </button>
+                      <button
+                        type="button"
+                        className="ml-2 items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(false)}
+                      >
+                        Remove Addresses
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="overflow-hidden rounded-lg bg-black px-4 shadow text-left grid grid-cols-2">

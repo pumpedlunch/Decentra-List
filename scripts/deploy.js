@@ -11,7 +11,7 @@ const GAS_SETTINGS = {
 };
 
 async function main() {
-/*   // DEPLOY DECENTRALIST
+  // DEPLOY DECENTRALIST
   const Decentralist = await hre.ethers.getContractFactory("Decentralist");
   const decentralist = await Decentralist.deploy(GAS_SETTINGS);
   let tx1 = await decentralist.deployed();
@@ -26,7 +26,7 @@ async function main() {
   )}
   --gas cost (ETH): ${ethers.utils.formatEther(
     tx1.gasUsed.mul(tx1.effectiveGasPrice)
-  )}`); */
+  )}`);
 
   // DEPLOY PROXY FACTORY
 

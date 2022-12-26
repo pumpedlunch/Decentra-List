@@ -165,7 +165,7 @@ export default function List({
                       type="button"
                       onClick={handleSubmitList}
                     >
-                      Create List
+                      Submit
                     </button>
                   </div>
                 </div>

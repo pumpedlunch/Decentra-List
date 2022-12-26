@@ -72,7 +72,7 @@ export default function AddressModal({
                         }}
                       />
                     </svg>
-                    <p className="text-2xl font-normal">Approve Bond Amount</p>
+                    <p className="text-2xl font-normal">Approve Total Bond</p>
                   </div>
                   <div className="text-left px-6">
                     <button
@@ -80,7 +80,7 @@ export default function AddressModal({
                       type="button"
                       onClick={handleSubmitApproval}
                     >
-                      Submit Approval Transaction
+                      Submit Approval
                     </button>
                   </div>
                   <div className="px-8 py-4 flex items-center gap-3">
@@ -125,7 +125,7 @@ export default function AddressModal({
                       type="button"
                       onClick={handleRevisionInput}
                     >
-                      Submit Address Transaction
+                      Submit Transaction
                     </button>
                   </div>
                 </div>
