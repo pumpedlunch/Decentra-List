@@ -555,7 +555,7 @@ export default function List() {
               <div>
                 <div className="ml-2">
                   <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
-                    decentraList
+                    Decentra-List
                   </p>
                   <p className="text-xs font-bold">
                     customizable, decentralized, onchain, address lists
@@ -564,7 +564,7 @@ export default function List() {
                 <div className="flex flex-w">
                   <a
                     className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
-                    href="https://decentralist.gitbook.io/docs/"
+                    href="https://decentra-list.gitbook.io/docs/"
                     target="_blank"
                     rel="noreferrer"
                   >
