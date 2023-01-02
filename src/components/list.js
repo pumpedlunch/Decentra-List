@@ -21,7 +21,7 @@ const STORE_ADDRESS = {
   "0x1": "0x54f44eA3D2e7aA0ac089c4d8F7C93C27844057BF",
 };
 const FACTORY_ADDRESS = {
-  "0x5": "0x264A5AF8438806A2d7e61f23fc2B385dB1C2dCba",
+  "0x5": "0xb787ea81D6e90c9a06D4480eFfa0ce8B7c6338e1",
   "0x1": "0x0898f96352a2ddeb86De0F357E86D8Ddc1D8b4c6",
 };
 const SUPPORTED_CHAIN_IDS = ["0x1", "0x5"];
@@ -42,9 +42,9 @@ export default function List() {
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("");
   const [balance, setBalance] = useState("");
-  const [pendingRevisions, setPendingRevisions] = useState([]);
+  const [proposedRevisions, setProposedRevisions] = useState([]);
   const [approvedRevisions, setApprovedRevisions] = useState([]);
-  const [pendingRevisionsIsOpen, setPendingRevisionsIsOpen] = useState(false);
+  const [proposedRevisionsIsOpen, setProposedRevisionsIsOpen] = useState(false);
   const [approvedRevisionsIsOpen, setApprovedRevisionsIsOpen] = useState(false);
 
   //create list args
@@ -60,6 +60,7 @@ export default function List() {
   const [finalFeeArg, setFinalFeeArg] = useState("");
   const [symbolArg, setSymbolArg] = useState([]);
   const [minLivenessArg, setMinLivenessArg] = useState([]);
+  const [decimalsArg, setDecimalsArg] = useState();
 
   //Wallet & Network variables
   const [userAddress, setUserAddress] = useState("");
@@ -76,7 +77,6 @@ export default function List() {
   // -----Page load function-----
 
   useEffect(() => {
-    console.log("useEffect");
     async function startup() {
       const isConnected = await checkIfWalletIsConnected();
       if (isConnected) {
@@ -98,7 +98,6 @@ export default function List() {
   // -----Helper Function-----
 
   const getLists = async (_chainId) => {
-    console.log(`getLists, _chainId = ${_chainId}`);
     const factoryContract = new ethers.Contract(
       FACTORY_ADDRESS[_chainId],
       FACTORY_ABI,
@@ -118,7 +117,6 @@ export default function List() {
   // -----Wallet Functions-----
 
   async function checkIfWalletIsConnected() {
-    console.log("check if Wallet is Connected");
     if (window.ethereum) {
       const accounts = await window.ethereum.request({
         method: "eth_accounts",
@@ -136,9 +134,7 @@ export default function List() {
   }
 
   const checkNetwork = async (_selectedNetwork) => {
-    console.log(`checking network is ${_selectedNetwork}`);
     const chainId = await window.ethereum.request({ method: "eth_chainId" });
-    console.log(chainId);
     if (chainId === _selectedNetwork) {
       setChainId(chainId);
       return chainId;
@@ -149,7 +145,6 @@ export default function List() {
   };
 
   const connectMetamask = async () => {
-    console.log("connecting");
     if (!window.ethereum) {
       alert("Please download Metamask to connect");
       return;
@@ -170,7 +165,6 @@ export default function List() {
   };
 
   const changeMetamaskChainId = async () => {
-    console.log(selectedNetwork);
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
@@ -246,8 +240,9 @@ export default function List() {
       setFixedAncillaryData(
         ethers.utils
           .toUtf8String(values[0])
+          .replace("meet the List Criteria? List Criteria: ", "")
           .replace(
-            ". Addresses to query can be found in the pendingAddresses parameter of the RevisionProposed event emitted by the requester's address in the same transaction as the proposed value with Revision ID = ",
+            " Proposed Addresses can be found in the proposedAddresses parameter of the RevisionProposed event emitted by the requester's address with Revision ID = ",
             ""
           )
       );
@@ -283,7 +278,7 @@ export default function List() {
         query.data
       );
       //handle adds
-      if (data.proposedValue.eq(ethers.utils.parseEther("1"))) {
+      if (data.revisionType === 1) {
         data.revisedAddresses.forEach((address) => {
           if (address !== "0x0000000000000000000000000000000000000000") {
             const index = _addressList.indexOf(address);
@@ -293,7 +288,7 @@ export default function List() {
           }
         });
         // handle removals
-      } else if (data.proposedValue.eq(0)) {
+      } else if (data.revisionType === 0) {
         data.revisedAddresses.forEach((address) => {
           if (address !== "0x0000000000000000000000000000000000000000") {
             const index = _addressList.indexOf(address);
@@ -306,20 +301,20 @@ export default function List() {
     });
     setAddressList(_addressList);
 
-    //get revision statuses & store pending (status = 1) and approved revisions (status = 2)
-    const _pendingRevisions = [];
+    //get revision statuses & store proposed (status = 1) and approved revisions (status = 2)
+    const _proposedRevisions = [];
     const _approvedRevisions = [];
     let status;
     let revisionId = 1;
 
     do {
-      let proposer, proposedValue;
-      [proposer, , proposedValue, status] = await listContract.revisions(
+      let proposer, revisionType;
+      [proposer, , revisionType, status] = await listContract.revisions(
         revisionId
       );
 
       if (status === 1 || status === 2) {
-        // get pendingAddresses
+        // get proposedAddresses
         const filter = listContract.filters.RevisionProposed(revisionId);
         const event = await listContract.queryFilter(filter);
 
@@ -329,10 +324,10 @@ export default function List() {
           event[0].data
         );
         if (status === 1) {
-          _pendingRevisions.push({
+          _proposedRevisions.push({
             revisionId: revisionId,
-            proposedValue: ethers.utils.formatEther(proposedValue),
-            pendingAddresses: data.pendingAddresses
+            revisionType: revisionType,
+            proposedAddresses: data.proposedAddresses
               .toString()
               .replaceAll(",", ", "),
             oracleURL:
@@ -346,14 +341,14 @@ export default function List() {
           _approvedRevisions.push({
             revisionId: revisionId,
             proposer: proposer,
-            pendingAddresses: data.pendingAddresses,
+            proposedAddresses: data.proposedAddresses,
           });
         }
       }
       revisionId++;
     } while (status !== 0);
 
-    setPendingRevisions(_pendingRevisions);
+    setProposedRevisions(_proposedRevisions);
     setApprovedRevisions(_approvedRevisions);
   };
 
@@ -371,7 +366,7 @@ export default function List() {
   const handleRevisionInput = async (event) => {
     event.preventDefault();
     let price = 0;
-    if (isAdd) price = (1e18).toString();
+    if (isAdd) price = 1;
     const arrayArg = addressInput.replaceAll(" ", "").split(",");
 
     try {
@@ -446,9 +441,11 @@ export default function List() {
 
       setSymbolArg(symbol);
       setFinalFeeArg(finalFee.toString());
+      setDecimalsArg(decimals);
     } else {
       setFinalFeeArg("");
       setSymbolArg([]);
+      setDecimalsArg("");
     }
   };
 
@@ -465,7 +462,6 @@ export default function List() {
       provider
     );
     const minLiveness = await factoryContract.minimumLiveness();
-    console.log(minLiveness.toString());
     setMinLivenessArg(minLiveness.toString());
 
     setListModalIsOpen(true);
@@ -488,14 +484,15 @@ export default function List() {
       FACTORY_ADDRESS[chainId],
       FACTORY_ABI
     );
+
     try {
       await contract.createNewDecentralist(
         ethers.utils.hexlify(ethers.utils.toUtf8Bytes(listCriteria)),
         titleArg,
         tokenArg,
-        ethers.utils.parseUnits(bondAmountArg, tokenDecimals),
-        ethers.utils.parseUnits(addRewardArg, tokenDecimals),
-        ethers.utils.parseUnits(removeRewardArg, tokenDecimals),
+        ethers.utils.parseUnits(bondAmountArg, decimalsArg),
+        ethers.utils.parseUnits(addRewardArg, decimalsArg),
+        ethers.utils.parseUnits(removeRewardArg, decimalsArg),
         livenessArg,
         ownerArg
       );
@@ -505,11 +502,10 @@ export default function List() {
   };
 
   const executeRevision = async (i) => {
-    console.log(i);
     const contract = await prepareContract(currentProxy, PROXY_ABI);
     await contract.executeRevision(
       approvedRevisions[i].revisionId,
-      approvedRevisions[i].pendingAddresses
+      approvedRevisions[i].proposedAddresses
     );
   };
 
@@ -741,15 +737,15 @@ export default function List() {
                   <button
                     class="w-full"
                     onClick={() => {
-                      setPendingRevisionsIsOpen((prev) => !prev);
+                      setProposedRevisionsIsOpen((prev) => !prev);
                     }}
                   >
                     <div class="justify-between flex flex-row">
                       <div class="w-[350px] text-left">
-                        Pending Revisions with Oracle (
-                        {pendingRevisions ? pendingRevisions.length : ""})
+                        Proposed Revisions with Oracle (
+                        {proposedRevisions ? proposedRevisions.length : ""})
                       </div>
-                      {pendingRevisionsIsOpen ? (
+                      {proposedRevisionsIsOpen ? (
                         <img
                           src={ARROW}
                           alt="logo"
@@ -762,7 +758,7 @@ export default function List() {
                     </div>
                   </button>
                 </dt>
-                {pendingRevisionsIsOpen ? (
+                {proposedRevisionsIsOpen ? (
                   <table class="table-fixed w-[750px] mt-2 content-center mx-2">
                     <thead>
                       <tr>
@@ -770,10 +766,10 @@ export default function List() {
                           Revision ID
                         </th>
                         <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
-                          Proposed Value
+                          Revision Type
                         </th>
                         <th class="border border-slate-300 text-sm font-medium text-gray-500 p-2">
-                          Pending Addresses
+                          Proposed Addresses
                         </th>
                         <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
                           Oracle
@@ -781,16 +777,16 @@ export default function List() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingRevisions.map((revision) => (
+                      {proposedRevisions.map((revision) => (
                         <tr>
                           <td class="border border-slate-300 text-center align-top py-2">
                             {revision.revisionId}
                           </td>
                           <td class="border border-slate-300 text-center align-top py-2">
-                            {revision.proposedValue}
+                            {revision.revisionType === 0 ? "Remove" : "Add"}
                           </td>
                           <td class="border border-slate-300 align-top pl-2 py-2">
-                            {revision.pendingAddresses}
+                            {revision.proposedAddresses}
                           </td>
                           <td class="border border-slate-300 text-center align-top py-2">
                             <a

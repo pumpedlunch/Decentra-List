@@ -129,7 +129,6 @@ const MAINNET_TOKENS = [
 ];
 
 const provider = ethers.provider;
-const YES = "1000000000000000000"; //1e18
 
 let signer1,
   signer2,
@@ -226,7 +225,7 @@ describe("DecentraList Test", function() {
     list = Decentralist.attach(listAddress).connect(signer1);
 
     //propose revision to add addresses
-    let tx1 = await list.proposeRevision(YES, ADDRESSES);
+    let tx1 = await list.proposeRevision(1, ADDRESSES);
     await expect(tx1).to.emit(list, "RevisionProposed");
 
     //get OO request data
@@ -412,17 +411,17 @@ describe("DecentraList Test", function() {
     const removedAddresses = [];
     const eventInterface = new ethers.utils.Interface(DECENTRALIST_ABI);
 
-    let queries = await list.queryFilter("RevisionExecuted");
+    let events = await list.eventFilter("RevisionExecuted");
 
     // loop over all events found
-    queries.forEach((query, i) => {
+    events.forEach((event, i) => {
       //decode event data
       const data = eventInterface.decodeEventLog(
         "RevisionExecuted",
-        query.data
+        event.data
       );
       //handle adds
-      if (data.proposedValue.eq(ethers.utils.parseEther("1"))) {
+      if (data.revisionType === 1) {
         data.revisedAddresses.forEach((address) => {
           if (address !== "0x0000000000000000000000000000000000000000") {
             const index = addressList.indexOf(address);
@@ -432,7 +431,7 @@ describe("DecentraList Test", function() {
           }
         });
         // handle removals
-      } else if (data.proposedValue.eq(0)) {
+      } else if (data.revisionType === 0) {
         data.revisedAddresses.forEach((address) => {
           removedAddresses.push(address);
           if (address !== "0x0000000000000000000000000000000000000000") {
@@ -464,7 +463,7 @@ describe("DecentraList Test", function() {
 
    // SMART CONTRACT GATING OF PRICE SETTLED FUNCTION HAS TO BE COMMENTED OUT FOR THIS TEST
     it("Disputed Revision", async function () {
-    const tx1 = await list.proposeRevision(YES, ADDRESSES);
+    const tx1 = await list.proposeRevision(1, ADDRESSES);
 
     await expect(tx1).to.emit(list, "RevisionProposed");
 
@@ -586,7 +585,7 @@ describe("DecentraList Test", function() {
         const listContract = Decentralist.attach(listAddress).connect(signer1);
 
         //propose revision to add addresses
-        const tx6 = await listContract.proposeRevision(YES, addressToAdd);
+        const tx6 = await listContract.proposeRevision(1, addressToAdd);
         //check that event is emitted
         await expect(tx6).to.emit(listContract, "RevisionProposed");
         //check that allowance from list to OOV2 is 0
