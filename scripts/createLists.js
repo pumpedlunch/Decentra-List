@@ -25,7 +25,7 @@ const FINDER_ADDRESS = "0x40f941E48A552bF496B154Af6bf55725f18D77c3"; // <mainnet
 const OOV2_ADDRESS = "0xA0Ae6609447e57a42c51B50EAe921D701823FFAe"; // <mainnet
 
 const LIST_CRITERIA =
-  "Addresses that have voted in over 90% of UMA DVM Votes in the 365 days previous to the price request."
+  "Addresses that have voted in over 90% of UMA DVM Votes in the 365 days previous to the price request." // convert to hex!
 const TITLE = "UMA Voting Allstars";
 const TOKEN = 0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828 // <Mainnet UMA "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; // <Mainnet WETH
 const BOND_AMOUNT = ethers.utils.parseEther("250");

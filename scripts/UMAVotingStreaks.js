@@ -5,7 +5,8 @@ const VOTING_ABI = require("../public/ABIs/Voting.json");
 const VOTING_ADDRESS = "0x8B1631ab830d11531aE83725fDa4D86012eCCd77";
 
 const SECONDS_PER_BLOCK = 13.1;
-const TARGET_VOTE_RATE = 0.9;
+const TARGET_VOTE_RATE = 0.8;
+const TIME_PERIOD = 365 * 24 * 60 * 60 / 2;
 
 const REQUEST_BLOCK = 16300062; // update to time of request
 
@@ -16,7 +17,7 @@ const votingContract = new ethers.Contract(
 );
 
 const PREVIOUS_LIST = [
-  "0x384D91E6b8D032AB9D844EB58B85dF6543e616F0",
+  /* "0x384D91E6b8D032AB9D844EB58B85dF6543e616F0",
   "0x5CEA80211fcC9aFD401C4D9A7042dBf8c08a82cc",
   "0xFCc544DE1dF80Ee89E1d6a236fa9F8E89EE5804F",
   "0x4fCC940e1e890AE00DbFa66FdE55329533427810",
@@ -41,44 +42,34 @@ const PREVIOUS_LIST = [
   "0xD9F9F15e1DCdA849a48EE048892C9B31287C7598",
   "0xF95C72Caa240C856c57b3C12D78AD33d68E62E22",
   "0x110f0b1FAa1cB6EEd49883f960808C95F609f6fd",
-  "0xac21e8867f4EC67fd1c03f0cfFB6c2961fD45a4b",
+  "0xac21e8867f4EC67fd1c03f0cfFB6c2961fD45a4b", */
 ];
 
 async function main() {
   //get current block number
-  const oneYearPrevTime =
-    (await provider.getBlock(REQUEST_BLOCK)).timestamp - 365 * 24 * 60 * 60;
+  const targetTime =
+    (await provider.getBlock(REQUEST_BLOCK)).timestamp - TIME_PERIOD;
 
   // initial guess at block number
-  let oneYearPrevBlockNo =
+  let blockNo =
     REQUEST_BLOCK - Math.round((365 * 24 * 60 * 60) / SECONDS_PER_BLOCK);
-  let oneYearPrevBlockTime = (await provider.getBlock(oneYearPrevBlockNo))
-    .timestamp;
-  let timeGap = oneYearPrevTime - oneYearPrevBlockTime;
+  let blockTime = (await provider.getBlock(blockNo)).timestamp;
+  let timeGap = targetTime - blockTime;
 
   // get accurate block number
   while (Math.abs(timeGap) > 60) {
-    oneYearPrevBlockNo += Math.round(timeGap / SECONDS_PER_BLOCK);
+    blockNo += Math.round(timeGap / SECONDS_PER_BLOCK);
 
-    oneYearPrevBlockTime = (await provider.getBlock(oneYearPrevBlockNo))
-      .timestamp;
-    timeGap = oneYearPrevTime - oneYearPrevBlockTime;
+    blockTime = (await provider.getBlock(blockNo)).timestamp;
+    timeGap = targetTime - blockTime;
   }
-  console.log(
-    `Searching from block #${oneYearPrevBlockNo} at timestamp ${oneYearPrevBlockTime} \n`
-  );
+  console.log(`Searching from block #${blockNo} at timestamp ${blockTime}`);
 
   // get total number of voting opportunities
-  let votingOpps = await votingContract.queryFilter(
-    "PriceResolved",
-    oneYearPrevBlockNo
-  );
+  let votingOpps = await votingContract.queryFilter("PriceResolved", blockNo);
 
   // get revealed votes
-  let revealedVotes = await votingContract.queryFilter(
-    "VoteRevealed",
-    oneYearPrevBlockNo
-  );
+  let revealedVotes = await votingContract.queryFilter("VoteRevealed", blockNo);
   const votesByAddress = {};
 
   //tally votes by address
@@ -116,8 +107,8 @@ async function main() {
     if (index === -1) addressesToAdd.push(address);
   }
 
-  console.log("Results for the past year:");
-  console.log(`Total number of unique voters ${voterCounter}`);
+  console.log(`Time period = ${TIME_PERIOD} sec`);
+  console.log(`Target vote rate = ${TARGET_VOTE_RATE * 100}%`);
   console.log(`${votingOpps.length} voting opportunities`);
   console.log(
     `${addressesOverVoteRate.length} Voters with > ${TARGET_VOTE_RATE *
