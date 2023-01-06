@@ -575,7 +575,7 @@ export default function List() {
                     Contact🡕
                   </a>
                   <p className="font-bold font-sans text-xs text-red-500 ml-4 mt-2">
-                    *alpha unaudited version deployed to Mainnet & Goerli
+                    *dapp is in currently in pre-launch test mode
                   </p>
                 </div>
               </div>
