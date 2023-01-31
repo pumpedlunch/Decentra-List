@@ -12,7 +12,7 @@ const FACTORY_ABI = require("../artifacts/contracts/DecentralistProxyFactory.sol
 const WETH_ABI = require("../public/WETH_ABI.json");
 const UMA_STORE_ABI = require("../public/UMAStore.json");
 
-const DECENTRALIST_ABI = require("../artifacts/contracts/decentralist.sol/Decentralist.json")
+const DECENTRALIST_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
   .abi;
 const EVENT_INTERFACE = new ethers.utils.Interface(DECENTRALIST_ABI);
 const STORE_ADDRESS = {
