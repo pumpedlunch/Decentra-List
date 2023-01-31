@@ -54,7 +54,7 @@ contract Decentralist is Initializable, Ownable {
     uint256 private finalFee;
 
     int256 internal constant PROPOSAL_YES_RESPONSE = int256(1e18);
-    bytes32 internal constant IDENTIFIER = "YES_OR_NO_QUERY";
+    bytes32 internal constant IDENTIFIER = "DECENTRA-LIST";
 
     enum RevisionType {
         Remove,
@@ -126,9 +126,9 @@ contract Decentralist is Initializable, Ownable {
 
         // add boilerplate directions for verification to _listCriteria
         fixedAncillaryData = bytes.concat(
-            "meet the List Criteria? List Criteria: ",
+            "meet the List Criteria at the time of the price request? List Criteria: ",
             _listCriteria,
-            ". Proposed Addresses can be found in the proposedAddresses parameter of the RevisionProposed event emitted by the requester's address with Revision ID = "
+            ". Decentra-List Revision ID = "
         );
         title = _title;
         token = IERC20(_token);
@@ -165,7 +165,8 @@ contract Decentralist is Initializable, Ownable {
         ancillaryData = bytes.concat(
             ancillaryData,
             fixedAncillaryData,
-            AncillaryData.toUtf8BytesUint(revisionCounter)
+            AncillaryData.toUtf8BytesUint(revisionCounter),
+            ". For directions to find the Proposed Addresses, see Implementation section of UMIP-169."
         );
         uint256 currentTime = block.timestamp;
 

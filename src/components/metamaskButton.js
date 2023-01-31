@@ -16,7 +16,7 @@ export default function MetaMaskButton({
     <>
       {userAddress ? (
         <>
-          {chainId ? (
+          {chainId === selectedNetwork ? (
             <div className="bg-slate-300 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right">
               <p className="">Connected</p>
               <p className="truncate px-2">{userAddress}</p>
