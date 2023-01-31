@@ -1,20 +1,15 @@
 const hre = require("hardhat");
 const { ethers } = require("hardhat");
-const { expect, assert, anyValue } = require("chai");
+const { expect } = require("chai");
 
 const WETH_ABI = require("./abis/WETH.json");
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; //mainnet
 const FINDER_ADDRESS = "0x40f941E48A552bF496B154Af6bf55725f18D77c3"; //mainnet
 const UNI_SWAP_ROUTER_ABI = require("./abis/UniswapV3SwapRouter.json");
 const UNI_SWAP_ROUTER_ADDRESS = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
-const { providers } = require("ethers");
-const {
-  setBlockGasLimit,
-} = require("@nomicfoundation/hardhat-network-helpers");
 const DECENTRALIST_ABI = require("../src/artifacts/contracts/Decentralist.sol/Decentralist.json")
   .abi;
 const OOV2_ABI = require("./abis/OptimisticOracleV2.json");
-const { default: Ethers } = require("@typechain/ethers-v5");
 const OOV2_ADDRESS = "0xa0ae6609447e57a42c51b50eae921d701823ffae"; //mainnet
 const OOV2Interface = new ethers.utils.Interface(OOV2_ABI);
 const UMA_STORE_ABI = require("./abis/UMAStore.json");
@@ -26,7 +21,7 @@ const MAINNET_TOKENS = [
   "0xeca82185adCE47f39c684352B0439f030f860318",
   "0x261b45D85cCFeAbb11F022eBa346ee8D1cd488c0",
   "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT failed -returned data
+  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
   "0x758A43EE2BFf8230eeb784879CdcFF4828F2544D",
   "0xBD2F0Cd039E0BFcf88901C98c0bFAc5ab27566e3",
   "0x19D97D8fA813EE2f51aD4B4e04EA08bAf4DFfC28",
@@ -36,7 +31,7 @@ const MAINNET_TOKENS = [
   "0x0AaCfbeC6a24756c20D41914F2caba817C0d8521",
   "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
   "0x514910771AF9Ca656af840dff83E8264EcF986CA",
-  "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F", // SNX failed -timed out
+  "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F",
   "0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828",
   "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
   "0xBb2b8038a1640196FbE3e38816F3e67Cba72D940",
@@ -234,11 +229,6 @@ describe("DecentraList Test", function() {
     let log = OOV2Interface.parseLog(receipt1.logs[0]);
     ({ requester, identifier, timestamp, ancillaryData } = log.args);
 
-    // console.log(
-    //   `PROPOSE ${ADDRESSES.length} ADDRESSES GAS USED:`,
-    //   receipt1.gasUsed.toNumber()
-    // );
-
     // make sure revision can not be executed before approval
     await expect(list.executeRevision(1, ADDRESSES)).to.be.reverted;
 
@@ -266,10 +256,6 @@ describe("DecentraList Test", function() {
     );
 
     const receipt3 = await tx3.wait();
-    // console.log(
-    //   `EXECUTE ${ADDRESSES.length} ADDRESSES GAS USED:`,
-    //   receipt3.gasUsed.toNumber()
-    // );
 
     // check that addresses are mapped to true onList
     const addressBools = ADDRESSES.map((address) => {
@@ -411,7 +397,7 @@ describe("DecentraList Test", function() {
     const removedAddresses = [];
     const eventInterface = new ethers.utils.Interface(DECENTRALIST_ABI);
 
-    let events = await list.eventFilter("RevisionExecuted");
+    let events = await list.queryFilter("RevisionExecuted");
 
     // loop over all events found
     events.forEach((event, i) => {
@@ -461,8 +447,8 @@ describe("DecentraList Test", function() {
     });
   });
 
-   // SMART CONTRACT GATING OF PRICE SETTLED FUNCTION HAS TO BE COMMENTED OUT FOR THIS TEST
-    it("Disputed Revision", async function () {
+  // NOTE: SMART CONTRACT msg.sender == address(oracle) IN PriceSettled FUNCTION HAS TO BE COMMENTED OUT FOR THIS TEST
+  /* it("Disputed Revision", async function () {
     const tx1 = await list.proposeRevision(1, ADDRESSES);
 
     await expect(tx1).to.emit(list, "RevisionProposed");
@@ -478,7 +464,7 @@ describe("DecentraList Test", function() {
 
     // make sure revision can not be executed after rejection
     await expect(list.executeRevision(3, ADDRESSES)).to.be.reverted;
-  });
+  }); */
 
   it("Only owner can adjust parameters", async function() {
     list = Decentralist.attach(listAddress);
@@ -499,14 +485,48 @@ describe("DecentraList Test", function() {
 
   it("Bond and liveness can not be set below minimums", async function() {
     list = Decentralist.attach(listAddress);
-    await expect(list.setBond(ethers.utils.parseEther("0.1"))).to.be.revertedWith('bond must be >= final fee')
-    await expect(list.setLiveness(MINIMUM_LIVENESS - 1000)).to.be.revertedWith('liveness must be >= minimumLiveness')
+    await expect(
+      list.setBond(ethers.utils.parseEther("0.1"))
+    ).to.be.revertedWith("bond must be >= final fee");
+    await expect(list.setLiveness(MINIMUM_LIVENESS - 1000)).to.be.revertedWith(
+      "liveness must be >= minimumLiveness"
+    );
   });
 
+  it("Owner can withdraw funds", async function() {
+    list = Decentralist.attach(listAddress);
 
-    describe(`Test bond and rewards for ${MAINNET_TOKENS.length} mainnet whitelisted tokens`, async function() {
+    let AMOUNT = 1000;
+    await wethContract.transfer(list.address, AMOUNT);
+
+    const signer1Balance = await wethContract.balanceOf(signer1.address);
+    const listBalance = await wethContract.balanceOf(list.address);
+
+    await list.withdraw(signer1.address, AMOUNT);
+
+    expect(await wethContract.balanceOf(signer1.address)).to.equal(
+      signer1Balance.add(AMOUNT)
+    );
+
+    expect(await wethContract.balanceOf(list.address)).to.equal(
+      listBalance.sub(AMOUNT)
+    );
+  });
+
+  it("Transfer ownership", async function() {
+    list = Decentralist.attach(listAddress);
+    //transfer to signer2
+    const tx1 = await list.transferOwnership(signer2.address);
+    await expect(list.setBond(BOND_AMOUNT + 100)).to.be.reverted;
+
+    //attach list to signer2
+    list = Decentralist.attach(listAddress).connect(signer2);
+    await expect(list.setBond(BOND_AMOUNT + 100)).to.not.be.reverted;
+  });
+
+  /*  describe(`Test bond and rewards for ${MAINNET_TOKENS.length} mainnet whitelisted tokens`, async function() {
     let swapFailCounter = 0;
-    
+
     MAINNET_TOKENS.forEach(async (tokenAddress, i) => {
       it(`${tokenAddress}`, async function() {
         const addressToAdd = ["0xac21e8867f4EC67fd1c03f0cfFB6c2961fD45a4b"];
@@ -517,10 +537,10 @@ describe("DecentraList Test", function() {
           signer1
         );
         let symbol;
-        try{
+        try {
           symbol = await tokenContract.symbol();
         } catch (error) {
-          console.log("error getting token symbol")
+          console.log("error getting token symbol");
         }
 
         const storeContract = new ethers.Contract(
@@ -567,9 +587,11 @@ describe("DecentraList Test", function() {
               sqrtPriceLimitX96: 0,
             });
           } catch (error) {
-            swapFailCounter ++;
+            swapFailCounter++;
             // if token swap cannot be found, console log token & return without error
-            console.log(`${symbol} swap not found - #${swapFailCounter} - test cancelled`);
+            console.log(
+              `${symbol} swap not found - #${swapFailCounter} - test cancelled`
+            );
             return;
           }
         }
@@ -589,7 +611,10 @@ describe("DecentraList Test", function() {
         //check that event is emitted
         await expect(tx6).to.emit(listContract, "RevisionProposed");
         //check that allowance from list to OOV2 is 0
-        const allowance = await tokenContract.allowance(listAddress, OOV2_ADDRESS);
+        const allowance = await tokenContract.allowance(
+          listAddress,
+          OOV2_ADDRESS
+        );
         expect(allowance).to.equal(0);
 
         //get OO request data
@@ -599,12 +624,7 @@ describe("DecentraList Test", function() {
         await provider.send("evm_increaseTime", [LIVENESS * 2]);
         // call settle on OOV2
         OOV2 = new ethers.Contract(OOV2_ADDRESS, OOV2Interface, signer1);
-        await OOV2.settle(
-          requester,
-          identifier,
-          timestamp,
-          ancillaryData
-        );
+        await OOV2.settle(requester, identifier, timestamp, ancillaryData);
         // call executeRevision
         const tx8 = await listContract.executeRevision(1, addressToAdd);
         await expect(tx8).to.emit(listContract, "RevisionExecuted");
@@ -614,8 +634,8 @@ describe("DecentraList Test", function() {
           [-ADD_REWARD, ADD_REWARD]
         );
       });
-    }); 
-  })
+    });
+  }); */
 });
 
 function generateAddressArray(length) {

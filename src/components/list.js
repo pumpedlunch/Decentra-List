@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ethers } from "ethers";
 import MetaMaskButton from "./metamaskButton";
 import AddressModal from "./addressModal";
 import ListModal from "./listModal";
-import LOGO from "./decentralist.png";
+import LOGO from "./decentra-list.png";
 import ARROW from "./dropdown_arrow.png";
 
 const PROXY_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
@@ -21,8 +22,8 @@ const STORE_ADDRESS = {
   "0x1": "0x54f44eA3D2e7aA0ac089c4d8F7C93C27844057BF",
 };
 const FACTORY_ADDRESS = {
-  "0x5": "0xb787ea81D6e90c9a06D4480eFfa0ce8B7c6338e1",
-  "0x1": "0x0898f96352a2ddeb86De0F357E86D8Ddc1D8b4c6",
+  "0x5": "0x44a68aaBDE79B9404b3e9F65a72BA657cd52F146",
+  "0x1": "0xb1E6D19DeafC045336DD766Bf345c78e771Ef7eA",
 };
 const SUPPORTED_CHAIN_IDS = ["0x1", "0x5"];
 
@@ -64,13 +65,17 @@ export default function List() {
 
   //Wallet & Network variables
   const [userAddress, setUserAddress] = useState("");
+  //chainId connected to metamask. Set to null if it does not match selectedNetwork
   const [chainId, setChainId] = useState(null);
-  const [selectedNetwork, setSelectedNetwork] = useState("");
+  //current network dropdown value
+  const [selectedNetwork, setSelectedNetwork] = useState("0x5");
 
   // State variables for modals
   const [addressModalIsOpen, setAddressModalIsOpen] = useState(false);
   const [listModalIsOpen, setListModalIsOpen] = useState(false);
   const [isAdd, setIsAdd] = useState(true);
+
+  let [searchParams, setSearchParams] = useSearchParams("chainId", "list");
 
   const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
 
@@ -78,24 +83,44 @@ export default function List() {
 
   useEffect(() => {
     async function startup() {
-      const isConnected = await checkIfWalletIsConnected();
-      if (isConnected) {
-        const _chainId = await window.ethereum.request({
-          method: "eth_chainId",
-        });
-        if (SUPPORTED_CHAIN_IDS.includes(_chainId)) {
-          setSelectedNetwork(_chainId);
-          setChainId(_chainId);
-          getLists(_chainId);
-          return;
-        }
-      }
-      setSelectedNetwork("0x1");
+      console.log("starting up!");
+
+      updateNetworkAndChainId();
     }
+
     startup();
   }, []);
 
   // -----Helper Function-----
+
+  const updateNetworkAndChainId = async () => {
+    console.log("updateNetworkAndChainId");
+    const isConnected = await checkIfWalletIsConnected();
+    let connectedChainId;
+    if (isConnected) {
+      connectedChainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
+      console.log("connectedChainId:", connectedChainId);
+      setChainId(connectedChainId);
+    }
+    //set selected network based on URL or else connectedChainId
+    const UrlChainId = searchParams.get("chainId");
+    console.log("UrlChainId:", UrlChainId);
+    if (SUPPORTED_CHAIN_IDS.includes(UrlChainId)) {
+      setSelectedNetwork(UrlChainId);
+      if (connectedChainId === UrlChainId) {
+        getLists(connectedChainId);
+        const listAddress = searchParams.get("list");
+        if (listAddress) {
+          updateProxy(listAddress, connectedChainId);
+        }
+      }
+    } else if (SUPPORTED_CHAIN_IDS.includes(connectedChainId)) {
+      setSelectedNetwork(connectedChainId);
+      getLists(connectedChainId);
+    }
+  };
 
   const getLists = async (_chainId) => {
     const factoryContract = new ethers.Contract(
@@ -114,100 +139,11 @@ export default function List() {
     setProxyAddresses(_proxyAddresses);
   };
 
-  // -----Wallet Functions-----
-
-  async function checkIfWalletIsConnected() {
-    if (window.ethereum) {
-      const accounts = await window.ethereum.request({
-        method: "eth_accounts",
-      });
-
-      if (accounts.length > 0) {
-        const account = accounts[0];
-        setUserAddress(account);
-        return true;
-      } else {
-        setUserAddress("");
-        return false;
-      }
-    }
-  }
-
-  const checkNetwork = async (_selectedNetwork) => {
-    const chainId = await window.ethereum.request({ method: "eth_chainId" });
-    if (chainId === _selectedNetwork) {
-      setChainId(chainId);
-      return chainId;
-    } else {
-      setChainId(null);
-      return null;
-    }
-  };
-
-  const connectMetamask = async () => {
-    if (!window.ethereum) {
-      alert("Please download Metamask to connect");
-      return;
-    }
-    const account = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    setUserAddress(account);
-
-    const _chainId = await window.ethereum.request({
-      method: "eth_chainId",
-    });
-    if (SUPPORTED_CHAIN_IDS.includes(_chainId)) {
-      setSelectedNetwork(_chainId);
-      setChainId(_chainId);
-      getLists(_chainId);
-    }
-  };
-
-  const changeMetamaskChainId = async () => {
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [
-          {
-            chainId: selectedNetwork,
-          },
-        ],
-      });
-      setChainId(selectedNetwork);
-      getLists(selectedNetwork);
-
-      //reset list state
-      setCurrentProxy("");
-      setOwner("");
-      setTotalBond("");
-      setLiveness("");
-      setAddReward("");
-      setRemoveReward("");
-      setBalance("");
-      setTokenSymbol("");
-      setFixedAncillaryData("");
-      setAddressList();
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  // ----- Handle changed selection functions-----
-
-  const changeSelectedNetwork = async (e) => {
-    setSelectedNetwork(e.target.value);
-    checkNetwork(e.target.value);
-  };
-
-  const changeList = async (e) => {
-    const index = [Number(e.target.value)];
-    setCurrentProxy(proxyAddresses[index]);
-    const listContract = new ethers.Contract(
-      proxyAddresses[index],
-      PROXY_ABI,
-      provider
-    );
+  const updateProxy = async (address, _chainId) => {
+    console.log("UPDATING PROXY ", address, _chainId, chainId);
+    setCurrentProxy(address);
+    setSearchParams({ chainId: _chainId, list: address });
+    const listContract = new ethers.Contract(address, PROXY_ABI, provider);
 
     const _tokenAddress = await listContract.token();
 
@@ -216,8 +152,9 @@ export default function List() {
       WETH_ABI,
       provider
     );
+    console.log("chainId: ", chainId);
     const storeContract = new ethers.Contract(
-      STORE_ADDRESS[chainId],
+      STORE_ADDRESS[_chainId],
       UMA_STORE_ABI,
       provider
     );
@@ -230,7 +167,7 @@ export default function List() {
       listContract.removalReward(),
       listContract.liveness(),
       listContract.owner(),
-      tokenContract.balanceOf(proxyAddresses[index]),
+      tokenContract.balanceOf(address),
       tokenContract.symbol(),
       tokenContract.decimals(),
       storeContract.finalFees(_tokenAddress)
@@ -240,11 +177,11 @@ export default function List() {
       setFixedAncillaryData(
         ethers.utils
           .toUtf8String(values[0])
-          .replace("meet the List Criteria? List Criteria: ", "")
           .replace(
-            " Proposed Addresses can be found in the proposedAddresses parameter of the RevisionProposed event emitted by the requester's address with Revision ID = ",
+            "meet the List Criteria at the time of the price request? List Criteria: ",
             ""
           )
+          .replace(" Decentra-List Revision ID = ", "")
       );
       setTotalBond(values[1].add(values[9]).toString());
       setAddReward(values[2].toString());
@@ -334,7 +271,7 @@ export default function List() {
               "https://testnet.oracle.umaproject.org/request?transactionHash=" +
               event[0].transactionHash +
               "&chainId=" +
-              chainId.replace("0x", "") +
+              _chainId.replace("0x", "") +
               "&oracleType=OptimisticV2&eventIndex=0",
           });
         } else if (status === 2) {
@@ -350,6 +287,85 @@ export default function List() {
 
     setProposedRevisions(_proposedRevisions);
     setApprovedRevisions(_approvedRevisions);
+  };
+
+  // -----Wallet Functions-----
+
+  async function checkIfWalletIsConnected() {
+    if (window.ethereum) {
+      const accounts = await window.ethereum.request({
+        method: "eth_accounts",
+      });
+
+      if (accounts.length > 0) {
+        const account = accounts[0];
+        setUserAddress(account);
+        return true;
+      } else {
+        setUserAddress("");
+        return false;
+      }
+    }
+  }
+
+  const connectMetamask = async () => {
+    if (!window.ethereum) {
+      alert("Please download Metamask to connect");
+      return;
+    }
+    const account = await window.ethereum.request({
+      method: "eth_requestAccounts",
+    });
+    setUserAddress(account);
+
+    updateNetworkAndChainId();
+  };
+
+  const changeMetamaskChainId = async () => {
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [
+          {
+            chainId: selectedNetwork,
+          },
+        ],
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
+    //reset list state
+    setCurrentProxy("");
+    setOwner("");
+    setTotalBond("");
+    setLiveness("");
+    setAddReward("");
+    setRemoveReward("");
+    setBalance("");
+    setTokenSymbol("");
+    setFixedAncillaryData("");
+    setAddressList();
+    setProposedRevisions();
+    setApprovedRevisions();
+
+    updateNetworkAndChainId();
+  };
+
+  // ----- Handle changed selection functions-----
+
+  const changeSelectedNetwork = async (e) => {
+    setSelectedNetwork(e.target.value);
+
+    if (e.target.value === chainId) {
+      setSearchParams({ chainId: chainId, list: currentProxy });
+    } else {
+      setSearchParams();
+    }
+  };
+
+  const selectProxy = async (e) => {
+    updateProxy(e.target.value, chainId);
   };
 
   // -----Add/Remove Addresses modal functions-----
@@ -547,7 +563,7 @@ export default function List() {
         <div className="flex justify-between py-3 items-center border-b-2 border-black z-30">
           <div className="">
             <div className="flex flex-w">
-              <img src={LOGO} alt="logo" width="90" height="25" />
+              <img src={LOGO} alt="logo" width="90" />
               <div>
                 <div className="ml-2">
                   <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
@@ -568,14 +584,14 @@ export default function List() {
                   </a>
                   <a
                     className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
-                    href="https://twitter.com/pumpedlunch"
+                    href="https://twitter.com/decentralistxyz"
                     target="_blank"
                     rel="noreferrer"
                   >
                     Contact🡕
                   </a>
                   <p className="font-bold font-sans text-xs text-red-500 ml-4 mt-2">
-                    *dapp is in currently in pre-launch test mode
+                    *un-audited alpha version deployed on Mainnet and Goerli
                   </p>
                 </div>
               </div>
@@ -600,31 +616,31 @@ export default function List() {
           </div>
         </div>
         <>
-          {chainId && userAddress ? (
+          {chainId === selectedNetwork && userAddress ? (
             <>
               <div className="flex flew-w justify-between items-center">
                 <form className="my-3">
-                  <label>
+                  <label className="ml-2">
+                    Select Existing List:
                     <select
-                      className="bg-blue-300 shadow px-2 py-2 rounded-md"
-                      onChange={changeList}
+                      value={currentProxy}
+                      className="bg-blue-300 shadow ml-2 px-2 py-2 rounded-md"
+                      onChange={selectProxy}
                     >
-                      <option
-                        className="p-5 font-bold"
-                        value="none"
-                        selected
-                        disabled
-                        hidden
-                      >
-                        {proxyTitles[0]
-                          ? "Select a List"
-                          : "No lists created yet"}
-                      </option>
-                      {proxyTitles.map((title, i) => (
-                        <option value={i} key={i}>
-                          {`${proxyAddresses[i].slice(0, 6)}... ${title}`}
+                      {proxyAddresses[0] ? (
+                        <>
+                          <option value="" key="default" hidden></option>
+                          {proxyAddresses.map((address, i) => (
+                            <option value={address} key={i}>
+                              {`${address.slice(0, 6)}... ${proxyTitles[i]}`}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        <option className="p-5 font-bold">
+                          No lists created
                         </option>
-                      ))}
+                      )}
                     </select>
                   </label>
                 </form>
@@ -634,7 +650,7 @@ export default function List() {
                     className="text-sm font-bold px-3 py-3 items-center rounded-md bg-[#ace4aa]  text-xs font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     onClick={openListModal}
                   >
-                    Create List
+                    Create New List
                   </button>
                 </div>
               </div>
@@ -732,16 +748,16 @@ export default function List() {
                 </dl>
               </div>
 
-              <div class="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit">
+              <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit">
                 <dt className="truncate font-medium mx-2">
                   <button
-                    class="w-full"
+                    className="w-full"
                     onClick={() => {
                       setProposedRevisionsIsOpen((prev) => !prev);
                     }}
                   >
-                    <div class="justify-between flex flex-row">
-                      <div class="w-[350px] text-left">
+                    <div className="justify-between flex flex-row">
+                      <div className="w-[350px] text-left">
                         Proposed Revisions with Oracle (
                         {proposedRevisions ? proposedRevisions.length : ""})
                       </div>
@@ -750,73 +766,84 @@ export default function List() {
                           src={ARROW}
                           alt="logo"
                           width="25"
-                          class="rotate-180"
+                          className="rotate-180"
                         />
                       ) : (
-                        <img src={ARROW} alt="logo" width="25" class="ml-2" />
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="ml-2"
+                        />
                       )}
                     </div>
                   </button>
                 </dt>
                 {proposedRevisionsIsOpen ? (
-                  <table class="table-fixed w-[750px] mt-2 content-center mx-2">
+                  <table className="table-fixed w-[750px] mt-2 content-center mx-2">
                     <thead>
                       <tr>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
                           Revision ID
                         </th>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
                           Revision Type
                         </th>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
                           Proposed Addresses
                         </th>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
                           Oracle
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {proposedRevisions.map((revision) => (
-                        <tr>
-                          <td class="border border-slate-300 text-center align-top py-2">
-                            {revision.revisionId}
-                          </td>
-                          <td class="border border-slate-300 text-center align-top py-2">
-                            {revision.revisionType === 0 ? "Remove" : "Add"}
-                          </td>
-                          <td class="border border-slate-300 align-top pl-2 py-2">
-                            {revision.proposedAddresses}
-                          </td>
-                          <td class="border border-slate-300 text-center align-top py-2">
-                            <a
-                              class="cursor-pointer font-bold font-sans
+                      {proposedRevisions ? (
+                        <>
+                          {proposedRevisions.map((revision) => (
+                            <tr>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                {revision.revisionId}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                {revision.revisionType === 0 ? "Remove" : "Add"}
+                              </td>
+                              <td className="border border-slate-300 align-top pl-2 py-2">
+                                {revision.proposedAddresses}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                <a
+                                  className="cursor-pointer font-bold font-sans
                              text-underline bg-blue-300 rounded-lg px-3 py-1 my-2"
-                              href={revision.oracleURL}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              🡕
-                            </a>
-                          </td>
-                        </tr>
-                      ))}
+                                  href={revision.oracleURL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  🡕
+                                </a>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      ) : (
+                        <></>
+                      )}
                     </tbody>
                   </table>
                 ) : (
                   ""
                 )}
               </div>
-              <div class="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit ">
+              <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit ">
                 <dt className="truncate font-medium mx-2">
                   <button
-                    class="w-full"
+                    className="w-full"
                     onClick={() => {
                       setApprovedRevisionsIsOpen((prev) => !prev);
                     }}
                   >
-                    <div class="justify-between flex flex-row">
-                      <div class="w-[350px] text-left">
+                    <div className="justify-between flex flex-row">
+                      <div className="w-[350px] text-left">
                         Approved Revisions for Execution (
                         {approvedRevisions ? approvedRevisions.length : ""})
                       </div>
@@ -825,48 +852,61 @@ export default function List() {
                           src={ARROW}
                           alt="logo"
                           width="25"
-                          class="rotate-180"
+                          className="rotate-180"
                         />
                       ) : (
-                        <img src={ARROW} alt="logo" width="25" class="ml-2" />
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="ml-2"
+                        />
                       )}
                     </div>
                   </button>
                 </dt>
                 {approvedRevisionsIsOpen ? (
-                  <table class="table-fixed w-[750px] rounded-lg bg-white shadow sm:p-2 mt-2 mx-2">
+                  <table className="table-fixed w-[750px] rounded-lg bg-white shadow sm:p-2 mt-2 mx-2">
                     <thead>
                       <tr>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
                           Revision ID
                         </th>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
                           Proposer
                         </th>
-                        <th class="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2" />
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2" />
                       </tr>
                     </thead>
                     <tbody>
-                      {approvedRevisions.map((revision, i) => (
-                        <tr>
-                          <td class="border border-slate-300 text-center align-top align-middle">
-                            {revision.revisionId}
-                          </td>
-                          <td class="border border-slate-300 text-center align-top px-2 align-middle">
-                            {revision.proposer}
-                          </td>
-                          <td class="border border-slate-300 text-center align-top">
-                            <button
-                              type="button"
-                              className="items-center rounded-md bg-[#ace4aa] px-3 py-2 my-2 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                              value={i}
-                              onClick={(e) => executeRevision(e.target.value)}
-                            >
-                              Execute
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {approvedRevisions ? (
+                        <>
+                          {approvedRevisions.map((revision, i) => (
+                            <tr>
+                              <td className="border border-slate-300 text-center align-top align-middle">
+                                {revision.revisionId}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top px-2 align-middle">
+                                {revision.proposer}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top">
+                                <button
+                                  type="button"
+                                  className="items-center rounded-md bg-[#ace4aa] px-3 py-2 my-2 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                  value={i}
+                                  onClick={(e) =>
+                                    executeRevision(e.target.value)
+                                  }
+                                >
+                                  Execute
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      ) : (
+                        <></>
+                      )}
                     </tbody>
                   </table>
                 ) : (

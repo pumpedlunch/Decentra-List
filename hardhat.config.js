@@ -2,7 +2,6 @@ require("@nomicfoundation/hardhat-toolbox");
 require("@nomiclabs/hardhat-etherscan");
 require("dotenv").config();
 
-/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
     version: "0.8.17",
@@ -18,7 +17,7 @@ module.exports = {
     hardhat: {
       forking: {
         url: process.env.MAINNET_URL ,
-        blockNumber: 16099000
+        blockNumber: 16521526
       }
     },
     goerli: {

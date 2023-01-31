@@ -1,13 +1,31 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import reportWebVitals from './reportWebVitals';
-import List from './components/list'
-import './App.css';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route} from "react-router-dom";
+import ReactDOM from "react-dom/client";
+import reportWebVitals from "./reportWebVitals";
+import List from "./components/list";
+import "./App.css";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+// used to redirect decentralist.xyz/verify which is shared in ancillary data to doc page explaining how to verify price requests
+function Redirect() {
+  return (
+    <div>
+      {
+        (window.location.href =
+          "https://decentra-list.gitbook.io/docs/using-decentra-list/verify-uma-oracle-requests")
+      }
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <List />
+    <Router>
+      <Routes>
+        <Route exact path="/" element={<List />}></Route>
+        <Route exact path="/verify" element={<Redirect/>}></Route>
+      </Routes>
+    </Router>
   </React.StrictMode>
 );
 
