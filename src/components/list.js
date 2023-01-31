@@ -7,14 +7,12 @@ import ListModal from "./listModal";
 import LOGO from "./decentra-list.png";
 import ARROW from "./dropdown_arrow.png";
 
-const PROXY_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
-  .abi;
 const FACTORY_ABI = require("../artifacts/contracts/DecentralistProxyFactory.sol/DecentralistProxyFactory.json")
   .abi;
 const WETH_ABI = require("../public/WETH_ABI.json");
 const UMA_STORE_ABI = require("../public/UMAStore.json");
 
-const DECENTRALIST_ABI = require("../artifacts/contracts/Decentralist.sol/Decentralist.json")
+const DECENTRALIST_ABI = require("../artifacts/contracts/decentralist.sol/Decentralist.json")
   .abi;
 const EVENT_INTERFACE = new ethers.utils.Interface(DECENTRALIST_ABI);
 const STORE_ADDRESS = {
@@ -25,7 +23,7 @@ const FACTORY_ADDRESS = {
   "0x5": "0x44a68aaBDE79B9404b3e9F65a72BA657cd52F146",
   "0x1": "0xb1E6D19DeafC045336DD766Bf345c78e771Ef7eA",
 };
-const SUPPORTED_CHAIN_IDS = ["0x1", "0x5"];
+const SUPPORTED_CHAIN_IDS = {"0x1": "Mainnet", "0x5": "Goerli"};
 
 export default function List() {
   const [proxyAddresses, setProxyAddresses] = useState([]);
@@ -107,7 +105,7 @@ export default function List() {
     //set selected network based on URL or else connectedChainId
     const UrlChainId = searchParams.get("chainId");
     console.log("UrlChainId:", UrlChainId);
-    if (SUPPORTED_CHAIN_IDS.includes(UrlChainId)) {
+    if (SUPPORTED_CHAIN_IDS[UrlChainId]) {
       setSelectedNetwork(UrlChainId);
       if (connectedChainId === UrlChainId) {
         getLists(connectedChainId);
@@ -116,7 +114,7 @@ export default function List() {
           updateProxy(listAddress, connectedChainId);
         }
       }
-    } else if (SUPPORTED_CHAIN_IDS.includes(connectedChainId)) {
+    } else if (SUPPORTED_CHAIN_IDS[connectedChainId]) {
       setSelectedNetwork(connectedChainId);
       getLists(connectedChainId);
     }
@@ -130,7 +128,7 @@ export default function List() {
     );
     const _proxyAddresses = await factoryContract.getAllClones();
     const _proxyTitles = _proxyAddresses.map((address) => {
-      const proxyContract = new ethers.Contract(address, PROXY_ABI, provider);
+      const proxyContract = new ethers.Contract(address, DECENTRALIST_ABI, provider);
       return proxyContract.title();
     });
     await Promise.all(_proxyTitles).then((_proxyTitles) => {
@@ -143,7 +141,7 @@ export default function List() {
     console.log("UPDATING PROXY ", address, _chainId, chainId);
     setCurrentProxy(address);
     setSearchParams({ chainId: _chainId, list: address });
-    const listContract = new ethers.Contract(address, PROXY_ABI, provider);
+    const listContract = new ethers.Contract(address, DECENTRALIST_ABI, provider);
 
     const _tokenAddress = await listContract.token();
 
@@ -186,6 +184,8 @@ export default function List() {
       setTotalBond(values[1].add(values[9]).toString());
       setAddReward(values[2].toString());
       setRemoveReward(values[3].toString());
+      console.log(values[4]);
+      console.log(values[4].div(60 * 60).toString());
       if (values[4] > 60 * 60) {
         setLiveness(values[4].div(60 * 60).toString());
         setLivenessUnits("hours");
@@ -193,7 +193,6 @@ export default function List() {
         setLiveness(values[4].toString());
         setLivenessUnits("seconds");
       }
-      setLiveness(values[4].toString());
       setOwner(values[5]);
       setBalance(values[6].toString());
       setTokenSymbol(values[7]);
@@ -261,6 +260,7 @@ export default function List() {
           event[0].data
         );
         if (status === 1) {
+          console.log("chainId:", chainId)
           _proposedRevisions.push({
             revisionId: revisionId,
             revisionType: revisionType,
@@ -268,7 +268,7 @@ export default function List() {
               .toString()
               .replaceAll(",", ", "),
             oracleURL:
-              "https://testnet.oracle.umaproject.org/request?transactionHash=" +
+              `https://${_chainId !== "0x1" ? "testnet." : "" }oracle.umaproject.org/request?transactionHash=` +
               event[0].transactionHash +
               "&chainId=" +
               _chainId.replace("0x", "") +
@@ -386,7 +386,7 @@ export default function List() {
     const arrayArg = addressInput.replaceAll(" ", "").split(",");
 
     try {
-      const contract = await prepareContract(currentProxy, PROXY_ABI);
+      const contract = await prepareContract(currentProxy, DECENTRALIST_ABI);
       await contract.proposeRevision(price, arrayArg);
     } catch (error) {
       alert(error);
@@ -518,7 +518,7 @@ export default function List() {
   };
 
   const executeRevision = async (i) => {
-    const contract = await prepareContract(currentProxy, PROXY_ABI);
+    const contract = await prepareContract(currentProxy, DECENTRALIST_ABI);
     await contract.executeRevision(
       approvedRevisions[i].revisionId,
       approvedRevisions[i].proposedAddresses
@@ -661,7 +661,7 @@ export default function List() {
                 </div>
                 <a
                   className="cursor-pointer pl-1 font-semibold"
-                  href={`https://goerli.etherscan.io/address/${currentProxy}`}
+                  href={`https://${chainId !== "0x1" ? `${SUPPORTED_CHAIN_IDS[chainId]}.` : "" }etherscan.io/address/${currentProxy}`}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -674,7 +674,7 @@ export default function List() {
                 </div>
                 <a
                   className="cursor-pointer pl-1 font-semibold"
-                  href={`https://goerli.etherscan.io/address/${owner}`}
+                  href={`https://${chainId !== "0x1" ? `${SUPPORTED_CHAIN_IDS[chainId]}.` : "" }etherscan.io/address/${owner}`}
                   target="_blank"
                   rel="noreferrer"
                 >

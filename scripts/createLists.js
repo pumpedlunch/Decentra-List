@@ -29,11 +29,11 @@ const TITLE = "UMA Voting Allstars";
 const TOKEN = "0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828" // <Mainnet UMA "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; // <Mainnet WETH
 const BOND_AMOUNT = ethers.utils.parseEther("250");
 const ADD_REWARD = 0;
-const REMOVE_REWARD = 4;
+const REMOVE_REWARD = ethers.utils.parseEther("4");
 const LIVENESS = 24 * 60 * 60;
 
 const GAS_SETTINGS = {
-  maxFeePerGas: ethers.utils.parseUnits("17", "gwei"),
+  maxFeePerGas: ethers.utils.parseUnits("38", "gwei"),
   maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
 };
 
