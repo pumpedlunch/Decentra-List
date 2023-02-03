@@ -209,6 +209,22 @@ describe("DecentraList Test", function() {
     expect(listAddress).to.be.a.properAddress;
   });
 
+  it("list can not be re-initialized", async function() {
+    await expect(decentralist.initialize(
+      "0x40f941E48A552bF496B154Af6bf55725f18D77c3",
+      0x1234,
+      "test title",
+      "0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828",
+      ethers.utils.parseEther("250"),
+      0,
+      0,
+      24 * 60 * 60,
+      8 * 60 * 60,
+      "0xac21e8867f4EC67fd1c03f0cfFB6c2961fD45a4b"
+    )).to.be.revertedWith("Initializable: contract is already initialized");
+  });
+
+
   it("Add Addresses", async function() {
     // APPROVE TOKEN SPEND FOR BOND
     await wethContract.approve(listAddress, ethers.utils.parseEther("10"));
