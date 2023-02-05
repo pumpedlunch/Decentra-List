@@ -77,17 +77,21 @@ export default function List() {
   let [searchParams, setSearchParams] = useSearchParams("chainId", "list");
 
   let provider;
+  
+  try {
+    provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+  } catch (error) {
+    alert("Please install metamask");
+  }
 
   // -----Page load function-----
-
   useEffect(() => {
     async function startup() {
-      console.log("starting up!");
-      try {
-        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      /* try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
       } catch (error) {
-        alert("Please install metamask")
-      }
+        alert("Please install metamask");
+      } */
 
       updateNetworkAndChainId();
     }
@@ -98,19 +102,16 @@ export default function List() {
   // -----Helper Function-----
 
   const updateNetworkAndChainId = async () => {
-    console.log("updateNetworkAndChainId");
     const isConnected = await checkIfWalletIsConnected();
     let connectedChainId;
     if (isConnected) {
       connectedChainId = await window.ethereum.request({
         method: "eth_chainId",
       });
-      console.log("connectedChainId:", connectedChainId);
       setChainId(connectedChainId);
     }
     //set selected network based on URL or else connectedChainId
     const UrlChainId = searchParams.get("chainId");
-    console.log("UrlChainId:", UrlChainId);
     if (SUPPORTED_CHAIN_IDS[UrlChainId]) {
       setSelectedNetwork(UrlChainId);
       if (connectedChainId === UrlChainId) {
@@ -127,6 +128,8 @@ export default function List() {
   };
 
   const getLists = async (_chainId) => {
+    console.log("getLists, provider:")
+    console.log(provider)
     const factoryContract = new ethers.Contract(
       FACTORY_ADDRESS[_chainId],
       FACTORY_ABI,
@@ -148,7 +151,9 @@ export default function List() {
   };
 
   const updateProxy = async (address, _chainId) => {
-    console.log("UPDATING PROXY ", address, _chainId, chainId);
+    console.log("updateProxy, provider:")
+    console.log(provider)
+    try{
     setCurrentProxy(address);
     setSearchParams({ chainId: _chainId, list: address });
     const listContract = new ethers.Contract(
@@ -164,7 +169,6 @@ export default function List() {
       WETH_ABI,
       provider
     );
-    console.log("chainId: ", chainId);
     const storeContract = new ethers.Contract(
       STORE_ADDRESS[_chainId],
       UMA_STORE_ABI,
@@ -198,8 +202,6 @@ export default function List() {
       setTotalBond(values[1].add(values[9]).toString());
       setAddReward(values[2].toString());
       setRemoveReward(values[3].toString());
-      console.log(values[4]);
-      console.log(values[4].div(60 * 60).toString());
       if (values[4] > 60 * 60) {
         setLiveness(values[4].div(60 * 60).toString());
         setLivenessUnits("hours");
@@ -274,7 +276,6 @@ export default function List() {
           event[0].data
         );
         if (status === 1) {
-          console.log("chainId:", chainId);
           _proposedRevisions.push({
             revisionId: revisionId,
             revisionType: revisionType,
@@ -303,6 +304,9 @@ export default function List() {
 
     setProposedRevisions(_proposedRevisions);
     setApprovedRevisions(_approvedRevisions);
+  } catch (error) {
+    console.log(error)
+  }
   };
 
   // -----Wallet Functions-----
@@ -548,491 +552,469 @@ export default function List() {
   };
 
   return (
-        <div className="bg-gray-200">
-          <AddressModal
-            isOpen={addressModalIsOpen}
-            closeModal={closeAddressModal}
-            isAdd={isAdd}
-            handleAddressInputChange={handleAddressInputChange}
-            handleRevisionInput={handleRevisionInput}
-            handleSubmitApproval={handleSubmitApproval}
-          />
-          <ListModal
-            isOpen={listModalIsOpen}
-            closeModal={closeListModal}
-            handleListCriteriaArgChange={handleListCriteriaArgChange}
-            handleTitleArgChange={handleTitleArgChange}
-            handleTokenArgChange={handleTokenArgChange}
-            handleLivenessArgChange={handleLivenessArgChange}
-            handleBondAmountArgChange={handleBondAmountArgChange}
-            handleAddRewardArgChange={handleAddRewardArgChange}
-            handleRemoveRewardArgChange={handleRemoveRewardArgChange}
-            handleOwnerArgChange={handleOwnerArgChange}
-            handleSubmitList={handleSubmitList}
-            closeAddressModal={closeAddressModal}
-            finalFeeArg={finalFeeArg}
-            symbolArg={symbolArg}
-            minLivenessArg={minLivenessArg}
-          />
-          <div className="relative px-20 min-h-screen w-screen">
-            <div className="flex justify-between py-3 items-center border-b-2 border-black z-30">
-              <div className="">
+    <div className="bg-gray-200">
+      <AddressModal
+        isOpen={addressModalIsOpen}
+        closeModal={closeAddressModal}
+        isAdd={isAdd}
+        handleAddressInputChange={handleAddressInputChange}
+        handleRevisionInput={handleRevisionInput}
+        handleSubmitApproval={handleSubmitApproval}
+      />
+      <ListModal
+        isOpen={listModalIsOpen}
+        closeModal={closeListModal}
+        handleListCriteriaArgChange={handleListCriteriaArgChange}
+        handleTitleArgChange={handleTitleArgChange}
+        handleTokenArgChange={handleTokenArgChange}
+        handleLivenessArgChange={handleLivenessArgChange}
+        handleBondAmountArgChange={handleBondAmountArgChange}
+        handleAddRewardArgChange={handleAddRewardArgChange}
+        handleRemoveRewardArgChange={handleRemoveRewardArgChange}
+        handleOwnerArgChange={handleOwnerArgChange}
+        handleSubmitList={handleSubmitList}
+        closeAddressModal={closeAddressModal}
+        finalFeeArg={finalFeeArg}
+        symbolArg={symbolArg}
+        minLivenessArg={minLivenessArg}
+      />
+      <div className="relative px-20 min-h-screen w-screen">
+        <div className="flex justify-between py-3 items-center border-b-2 border-black z-30">
+          <div className="">
+            <div className="flex">
+              <img src={LOGO} alt="logo" width="100" className="flex-none" />
+              <div>
+                <div className="ml-2">
+                  <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
+                    Decentra-List
+                  </p>
+                  <p className="text-xs font-bold">
+                    customizable, decentralized, onchain, address lists
+                  </p>
+                  <p className="font-bold font-sans text-xs text-red-500">
+                    *un-audited alpha version deployed on Mainnet and Goerli
+                  </p>
+                </div>
                 <div className="flex flex-w">
-                  <img src={LOGO} alt="logo" width="90" />
-                  <div>
-                    <div className="ml-2">
-                      <p className="font-bold font-sans text-3xl text-indigo-900 mt-2">
-                        Decentra-List
-                      </p>
-                      <p className="text-xs font-bold">
-                        customizable, decentralized, onchain, address lists
-                      </p>
-                    </div>
-                    <div className="flex flex-w">
-                      <a
-                        className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
-                        href="https://decentra-list.gitbook.io/docs/"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Docs🡕
-                      </a>
-                      <a
-                        className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 mt-2 text-underline"
-                        href="https://twitter.com/decentralistxyz"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Contact🡕
-                      </a>
-                      <p className="font-bold font-sans text-xs text-red-500 ml-4 mt-2">
-                        *un-audited alpha version deployed on Mainnet and Goerli
-                      </p>
-                    </div>
-                  </div>
+                  <a
+                    className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 text-underline"
+                    href="https://decentra-list.gitbook.io/docs/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Docs🡕
+                  </a>
+                  <a
+                    className="cursor-pointer font-bold font-sans text-xs text-blue-500 ml-2 text-underline"
+                    href="https://twitter.com/decentralistxyz"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Contact🡕
+                  </a>
                 </div>
               </div>
-              <div className="flex flex-row">
-                <select
-                  className="shadow px-2 rounded-md mr-2 mt-2 h-14 text-sm"
-                  onChange={changeSelectedNetwork}
-                  value={selectedNetwork}
-                >
-                  <option value="0x1">Ethereum</option>
-                  <option value="0x5">Goerli</option>
-                </select>
-                <MetaMaskButton
-                  connectMetamask={connectMetamask}
-                  chainId={chainId}
-                  selectedNetwork={selectedNetwork}
-                  userAddress={userAddress}
-                  changeMetamaskChainId={changeMetamaskChainId}
-                />
-              </div>
             </div>
-            <>
-              {chainId === selectedNetwork && userAddress ? (
-                <>
-                  <div className="flex flew-w justify-between items-center">
-                    <form className="my-3">
-                      <label className="ml-2">
-                        Select Existing List:
-                        <select
-                          value={currentProxy}
-                          className="bg-blue-300 shadow ml-2 px-2 py-2 rounded-md"
-                          onChange={selectProxy}
-                        >
-                          {proxyAddresses[0] ? (
-                            <>
-                              <option value="" key="default" hidden></option>
-                              {proxyAddresses.map((address, i) => (
-                                <option value={address} key={i}>
-                                  {`${address.slice(0, 6)}... ${
-                                    proxyTitles[i]
-                                  }`}
-                                </option>
-                              ))}
-                            </>
-                          ) : (
-                            <option className="p-5 font-bold">
-                              No lists created
-                            </option>
-                          )}
-                        </select>
-                      </label>
-                    </form>
-                    <div className="my-3">
-                      <button
-                        type="button"
-                        className="text-sm font-bold px-3 py-3 items-center rounded-md bg-[#ace4aa]  text-xs font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                        onClick={openListModal}
-                      >
-                        Create New List
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex rounded-lg bg-white px-4 py-2 mb-4 shadow sm:p-2">
-                    <div className="flex flex-col ">
-                      <p className="font-medium text-gray-500">
-                        Contract Address:
-                      </p>
-                    </div>
-                    <a
-                      className="cursor-pointer pl-1 font-semibold"
-                      href={`https://${
-                        chainId !== "0x1"
-                          ? `${SUPPORTED_CHAIN_IDS[chainId]}.`
-                          : ""
-                      }etherscan.io/address/${currentProxy}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {currentProxy ? currentProxy + "🡕" : ""}
-                    </a>
-                  </div>
-                  <div className="flex rounded-lg bg-white px-4 py-2 mb-2 shadow sm:p-2">
-                    <div className="flex flex-col">
-                      <p className="font-medium text-gray-500">
-                        Owner Address:
-                      </p>
-                    </div>
-                    <a
-                      className="cursor-pointer pl-1 font-semibold"
-                      href={`https://${
-                        chainId !== "0x1"
-                          ? `${SUPPORTED_CHAIN_IDS[chainId]}.`
-                          : ""
-                      }etherscan.io/address/${owner}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {owner ? owner + "🡕" : ""}
-                    </a>
-                  </div>
-                  <div>
-                    <dl className="mt-5 grid grid-cols-1 gap-10 sm:grid-cols-5 text-center">
-                      <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          Total Bond
-                        </dt>
-                        <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                          {totalBond
-                            ? ethers.utils.formatUnits(totalBond, tokenDecimals)
-                            : ""}{" "}
-                          {tokenSymbol}
-                        </dd>
-                      </div>
-                      <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          Liveness Period{" "}
-                        </dt>
-                        <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                          {liveness ? liveness + " " + livenessUnits : ""}
-                        </dd>
-                      </div>
-                      <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          Reward / Add
-                        </dt>
-                        <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                          {addReward
-                            ? ethers.utils.formatUnits(addReward, tokenDecimals)
-                            : ""}{" "}
-                          {tokenSymbol}
-                        </dd>
-                      </div>
-                      <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          Reward / Removal
-                        </dt>
-                        <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                          {removeReward
-                            ? ethers.utils.formatUnits(
-                                removeReward,
-                                tokenDecimals
-                              )
-                            : ""}{" "}
-                          {tokenSymbol}
-                        </dd>
-                      </div>
-                      <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          Contract Balance
-                        </dt>
-                        <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
-                          {balance
-                            ? ethers.utils.formatUnits(balance, tokenDecimals)
-                            : ""}{" "}
-                          {tokenSymbol}
-                        </dd>
-                      </div>
-                    </dl>
-                    <dl className="mt-4 flex items-center justify-left">
-                      <div className="overflow-hidden rounded-lg bg-white px-4 shadow sm:p-4 text-left w-full">
-                        <dt className="truncate text-sm font-medium text-gray-500">
-                          List Criteria:
-                        </dt>
-                        <dd className="mt-1 text tracking-tight text-black">
-                          {fixedAncillaryData}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-
-                  <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit">
-                    <dt className="truncate font-medium mx-2">
-                      <button
-                        className="w-full"
-                        onClick={() => {
-                          setProposedRevisionsIsOpen((prev) => !prev);
-                        }}
-                      >
-                        <div className="justify-between flex flex-row">
-                          <div className="w-[350px] text-left">
-                            Proposed Revisions with Oracle (
-                            {proposedRevisions ? proposedRevisions.length : ""})
-                          </div>
-                          {proposedRevisionsIsOpen ? (
-                            <img
-                              src={ARROW}
-                              alt="logo"
-                              width="25"
-                              className="rotate-180"
-                            />
-                          ) : (
-                            <img
-                              src={ARROW}
-                              alt="logo"
-                              width="25"
-                              className="ml-2"
-                            />
-                          )}
-                        </div>
-                      </button>
-                    </dt>
-                    {proposedRevisionsIsOpen ? (
-                      <table className="table-fixed w-[750px] mt-2 content-center mx-2">
-                        <thead>
-                          <tr>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
-                              Revision ID
-                            </th>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
-                              Revision Type
-                            </th>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
-                              Proposed Addresses
-                            </th>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
-                              Oracle
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {proposedRevisions ? (
-                            <>
-                              {proposedRevisions.map((revision) => (
-                                <tr>
-                                  <td className="border border-slate-300 text-center align-top py-2">
-                                    {revision.revisionId}
-                                  </td>
-                                  <td className="border border-slate-300 text-center align-top py-2">
-                                    {revision.revisionType === 0
-                                      ? "Remove"
-                                      : "Add"}
-                                  </td>
-                                  <td className="border border-slate-300 align-top pl-2 py-2">
-                                    {revision.proposedAddresses}
-                                  </td>
-                                  <td className="border border-slate-300 text-center align-top py-2">
-                                    <a
-                                      className="cursor-pointer font-bold font-sans
-                             text-underline bg-blue-300 rounded-lg px-3 py-1 my-2"
-                                      href={revision.oracleURL}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    >
-                                      🡕
-                                    </a>
-                                  </td>
-                                </tr>
-                              ))}
-                            </>
-                          ) : (
-                            <></>
-                          )}
-                        </tbody>
-                      </table>
-                    ) : (
-                      ""
-                    )}
-                  </div>
-                  <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit ">
-                    <dt className="truncate font-medium mx-2">
-                      <button
-                        className="w-full"
-                        onClick={() => {
-                          setApprovedRevisionsIsOpen((prev) => !prev);
-                        }}
-                      >
-                        <div className="justify-between flex flex-row">
-                          <div className="w-[350px] text-left">
-                            Approved Revisions for Execution (
-                            {approvedRevisions ? approvedRevisions.length : ""})
-                          </div>
-                          {approvedRevisionsIsOpen ? (
-                            <img
-                              src={ARROW}
-                              alt="logo"
-                              width="25"
-                              className="rotate-180"
-                            />
-                          ) : (
-                            <img
-                              src={ARROW}
-                              alt="logo"
-                              width="25"
-                              className="ml-2"
-                            />
-                          )}
-                        </div>
-                      </button>
-                    </dt>
-                    {approvedRevisionsIsOpen ? (
-                      <table className="table-fixed w-[750px] rounded-lg bg-white shadow sm:p-2 mt-2 mx-2">
-                        <thead>
-                          <tr>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
-                              Revision ID
-                            </th>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
-                              Proposer
-                            </th>
-                            <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {approvedRevisions ? (
-                            <>
-                              {approvedRevisions.map((revision, i) => (
-                                <tr>
-                                  <td className="border border-slate-300 text-center align-top align-middle">
-                                    {revision.revisionId}
-                                  </td>
-                                  <td className="border border-slate-300 text-center align-top px-2 align-middle">
-                                    {revision.proposer}
-                                  </td>
-                                  <td className="border border-slate-300 text-center align-top">
-                                    <button
-                                      type="button"
-                                      className="items-center rounded-md bg-[#ace4aa] px-3 py-2 my-2 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                      value={i}
-                                      onClick={(e) =>
-                                        executeRevision(e.target.value)
-                                      }
-                                    >
-                                      Execute
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </>
-                          ) : (
-                            <></>
-                          )}
-                        </tbody>
-                      </table>
-                    ) : (
-                      ""
-                    )}
-                  </div>
-
-                  <div className="flex flex-w justify-between my-2">
-                    <div>
-                      <dt className="truncate text-xl font-medium mt-6">
-                        Addresses on List (
-                        {addressList ? addressList.length : ""}):
-                      </dt>
-                    </div>
-                    <div className="mt-2">
-                      {currentProxy ? (
-                        <>
-                          <button
-                            type="button"
-                            className="items-center rounded-md bg-[#ace4aa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            onClick={() => openAddressModal(true)}
-                          >
-                            Add Addresses
-                          </button>
-                          <button
-                            type="button"
-                            className="ml-2 items-center rounded-md bg-[#e4aeaa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            onClick={() => openAddressModal(false)}
-                          >
-                            Remove Addresses
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            onClick={() => openAddressModal(true)}
-                          >
-                            Add Addresses
-                          </button>
-                          <button
-                            type="button"
-                            className="ml-2 items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            onClick={() => openAddressModal(false)}
-                          >
-                            Remove Addresses
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="overflow-hidden rounded-lg bg-black px-4 shadow text-left grid grid-cols-2">
-                    <div>
-                      <ul className="py-2">
-                        {addressList
-                          ? addressList
-                              .slice(0, Math.ceil(addressList.length / 2))
-                              .map((address) => (
-                                <li
-                                  key={address}
-                                  className="font-mono text-white"
-                                >
-                                  {address},
-                                </li>
-                              ))
-                          : ""}
-                      </ul>
-                    </div>
-                    <div>
-                      <ul className="py-2">
-                        {addressList
-                          ? addressList
-                              .slice(Math.ceil(addressList.length / 2))
-                              .map((address) => (
-                                <li
-                                  key={address}
-                                  className="font-mono text-white"
-                                >
-                                  {address},
-                                </li>
-                              ))
-                          : ""}
-                      </ul>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <></>
-              )}
-            </>
+          </div>
+          <div className="flex flex-row">
+            <select
+              className="shadow px-2 rounded-md mr-2 mt-2 h-14 text-sm"
+              onChange={changeSelectedNetwork}
+              value={selectedNetwork}
+            >
+              <option value="0x1">Ethereum</option>
+              <option value="0x5">Goerli</option>
+            </select>
+            <MetaMaskButton
+              connectMetamask={connectMetamask}
+              chainId={chainId}
+              selectedNetwork={selectedNetwork}
+              userAddress={userAddress}
+              changeMetamaskChainId={changeMetamaskChainId}
+            />
           </div>
         </div>
+        <>
+          {chainId === selectedNetwork && userAddress ? (
+            <>
+              <div className="flex flew-w justify-between items-center">
+                <form className="my-3">
+                  <label className="ml-2">
+                    Select Existing List:
+                    <select
+                      value={currentProxy}
+                      className="bg-blue-300 shadow ml-2 px-2 py-2 rounded-md"
+                      onChange={selectProxy}
+                    >
+                      {proxyAddresses[0] ? (
+                        <>
+                          <option value="" key="default" hidden></option>
+                          {proxyAddresses.map((address, i) => (
+                            <option value={address} key={i}>
+                              {`${address.slice(0, 6)}... ${proxyTitles[i]}`}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        <option className="p-5 font-bold">
+                          No lists created
+                        </option>
+                      )}
+                    </select>
+                  </label>
+                </form>
+                <div className="my-3">
+                  <button
+                    type="button"
+                    className="text-sm font-bold px-3 py-3 items-center rounded-md bg-[#ace4aa]  text-xs font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    onClick={openListModal}
+                  >
+                    Create New List
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex rounded-lg bg-white px-4 py-2 mb-4 shadow sm:p-2">
+                <div className="flex flex-col ">
+                  <p className="font-medium text-gray-500">Contract Address:</p>
+                </div>
+                <a
+                  className="cursor-pointer pl-1 font-semibold"
+                  href={`https://${
+                    chainId !== "0x1" ? `${SUPPORTED_CHAIN_IDS[chainId]}.` : ""
+                  }etherscan.io/address/${currentProxy}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {currentProxy ? currentProxy + "🡕" : ""}
+                </a>
+              </div>
+              <div className="flex rounded-lg bg-white px-4 py-2 mb-2 shadow sm:p-2">
+                <div className="flex flex-col">
+                  <p className="font-medium text-gray-500">Owner Address:</p>
+                </div>
+                <a
+                  className="cursor-pointer pl-1 font-semibold"
+                  href={`https://${
+                    chainId !== "0x1" ? `${SUPPORTED_CHAIN_IDS[chainId]}.` : ""
+                  }etherscan.io/address/${owner}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {owner ? owner + "🡕" : ""}
+                </a>
+              </div>
+              <div>
+                <dl className="mt-5 grid grid-cols-1 gap-10 sm:grid-cols-5 text-center">
+                  <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Total Bond
+                    </dt>
+                    <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                      {totalBond
+                        ? ethers.utils.formatUnits(totalBond, tokenDecimals)
+                        : ""}{" "}
+                      {tokenSymbol}
+                    </dd>
+                  </div>
+                  <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Liveness Period{" "}
+                    </dt>
+                    <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                      {liveness ? liveness + " " + livenessUnits : ""}
+                    </dd>
+                  </div>
+                  <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Reward / Add
+                    </dt>
+                    <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                      {addReward
+                        ? ethers.utils.formatUnits(addReward, tokenDecimals)
+                        : ""}{" "}
+                      {tokenSymbol}
+                    </dd>
+                  </div>
+                  <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Reward / Removal
+                    </dt>
+                    <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                      {removeReward
+                        ? ethers.utils.formatUnits(removeReward, tokenDecimals)
+                        : ""}{" "}
+                      {tokenSymbol}
+                    </dd>
+                  </div>
+                  <div className="overflow-hidden rounded-lg bg-white px-4 py-2 shadow sm:p-2">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Contract Balance
+                    </dt>
+                    <dd className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                      {balance
+                        ? ethers.utils.formatUnits(balance, tokenDecimals)
+                        : ""}{" "}
+                      {tokenSymbol}
+                    </dd>
+                  </div>
+                </dl>
+                <dl className="mt-4 flex items-center justify-left">
+                  <div className="overflow-hidden rounded-lg bg-white px-4 shadow sm:p-4 text-left w-full">
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      List Criteria:
+                    </dt>
+                    <dd className="mt-1 text tracking-tight text-black">
+                      {fixedAncillaryData}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit">
+                <dt className="truncate font-medium mx-2">
+                  <button
+                    className="w-full"
+                    onClick={() => {
+                      setProposedRevisionsIsOpen((prev) => !prev);
+                    }}
+                  >
+                    <div className="justify-between flex flex-row">
+                      <div className="w-[350px] text-left">
+                        Proposed Revisions with Oracle (
+                        {proposedRevisions ? proposedRevisions.length : ""})
+                      </div>
+                      {proposedRevisionsIsOpen ? (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="rotate-180"
+                        />
+                      ) : (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="ml-2"
+                        />
+                      )}
+                    </div>
+                  </button>
+                </dt>
+                {proposedRevisionsIsOpen ? (
+                  <table className="table-fixed w-[750px] mt-2 content-center mx-2">
+                    <thead>
+                      <tr>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Revision ID
+                        </th>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Revision Type
+                        </th>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                          Proposed Addresses
+                        </th>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Oracle
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proposedRevisions ? (
+                        <>
+                          {proposedRevisions.map((revision) => (
+                            <tr>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                {revision.revisionId}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                {revision.revisionType === 0 ? "Remove" : "Add"}
+                              </td>
+                              <td className="border border-slate-300 align-top pl-2 py-2">
+                                {revision.proposedAddresses}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top py-2">
+                                <a
+                                  className="cursor-pointer font-bold font-sans
+                             text-underline bg-blue-300 rounded-lg px-3 py-1 my-2"
+                                  href={revision.oracleURL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  🡕
+                                </a>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      ) : (
+                        <></>
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  ""
+                )}
+              </div>
+              <div className="rounded-lg bg-white shadow sm:p-2 mt-4 w-fit ">
+                <dt className="truncate font-medium mx-2">
+                  <button
+                    className="w-full"
+                    onClick={() => {
+                      setApprovedRevisionsIsOpen((prev) => !prev);
+                    }}
+                  >
+                    <div className="justify-between flex flex-row">
+                      <div className="w-[350px] text-left">
+                        Approved Revisions for Execution (
+                        {approvedRevisions ? approvedRevisions.length : ""})
+                      </div>
+                      {approvedRevisionsIsOpen ? (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="rotate-180"
+                        />
+                      ) : (
+                        <img
+                          src={ARROW}
+                          alt="logo"
+                          width="25"
+                          className="ml-2"
+                        />
+                      )}
+                    </div>
+                  </button>
+                </dt>
+                {approvedRevisionsIsOpen ? (
+                  <table className="table-fixed w-[750px] rounded-lg bg-white shadow sm:p-2 mt-2 mx-2">
+                    <thead>
+                      <tr>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2">
+                          Revision ID
+                        </th>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 p-2">
+                          Proposer
+                        </th>
+                        <th className="border border-slate-300 text-sm font-medium text-gray-500 w-[100px] p-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedRevisions ? (
+                        <>
+                          {approvedRevisions.map((revision, i) => (
+                            <tr>
+                              <td className="border border-slate-300 text-center align-top align-middle">
+                                {revision.revisionId}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top px-2 align-middle">
+                                {revision.proposer}
+                              </td>
+                              <td className="border border-slate-300 text-center align-top">
+                                <button
+                                  type="button"
+                                  className="items-center rounded-md bg-[#ace4aa] px-3 py-2 my-2 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                  value={i}
+                                  onClick={(e) =>
+                                    executeRevision(e.target.value)
+                                  }
+                                >
+                                  Execute
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      ) : (
+                        <></>
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  ""
+                )}
+              </div>
+
+              <div className="flex flex-w justify-between my-2">
+                <div>
+                  <dt className="truncate text-xl font-medium mt-6">
+                    Addresses on List ({addressList ? addressList.length : ""}):
+                  </dt>
+                </div>
+                <div className="mt-2">
+                  {currentProxy ? (
+                    <>
+                      <button
+                        type="button"
+                        className="items-center rounded-md bg-[#ace4aa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(true)}
+                      >
+                        Add Addresses
+                      </button>
+                      <button
+                        type="button"
+                        className="ml-2 items-center rounded-md bg-[#e4aeaa] p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(false)}
+                      >
+                        Remove Addresses
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(true)}
+                      >
+                        Add Addresses
+                      </button>
+                      <button
+                        type="button"
+                        className="ml-2 items-center rounded-md bg-slate-300 p-3 text-sm font-bold shadow-md hover:bg-sky-700 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        onClick={() => openAddressModal(false)}
+                      >
+                        Remove Addresses
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-lg bg-black px-4 shadow text-left grid grid-cols-2">
+                <div>
+                  <ul className="py-2">
+                    {addressList
+                      ? addressList
+                          .slice(0, Math.ceil(addressList.length / 2))
+                          .map((address) => (
+                            <li key={address} className="font-mono text-white">
+                              {address},
+                            </li>
+                          ))
+                      : ""}
+                  </ul>
+                </div>
+                <div>
+                  <ul className="py-2">
+                    {addressList
+                      ? addressList
+                          .slice(Math.ceil(addressList.length / 2))
+                          .map((address) => (
+                            <li key={address} className="font-mono text-white">
+                              {address},
+                            </li>
+                          ))
+                      : ""}
+                  </ul>
+                </div>
+              </div>
+            </>
+          ) : (
+            <></>
+          )}
+        </>
+      </div>
+    </div>
   );
 }
