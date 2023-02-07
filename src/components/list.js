@@ -591,9 +591,6 @@ export default function List() {
                   <p className="text-xs font-bold">
                     customizable, decentralized, onchain, address lists
                   </p>
-                  <p className="font-bold font-sans text-xs text-red-500">
-                    *un-audited alpha version deployed on Mainnet and Goerli
-                  </p>
                 </div>
                 <div className="flex flex-w">
                   <a
