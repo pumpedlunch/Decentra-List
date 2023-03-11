@@ -8,6 +8,8 @@ export default function AddressModal({
   handleAddressInputChange,
   handleSubmitApproval,
   handleRevisionInput,
+  totalBond,
+  tokenSymbol
 }) {
   const addressInputRef = useRef(null);
 
@@ -72,7 +74,7 @@ export default function AddressModal({
                         }}
                       />
                     </svg>
-                    <p className="text-2xl font-normal">Approve Total Bond</p>
+                    <p className="text-2xl font-normal">Approve Total Bond: {totalBond} {tokenSymbol}</p>
                   </div>
                   <div className="text-left px-6">
                     <button

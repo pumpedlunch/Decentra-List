@@ -16,7 +16,7 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MAINNET_URL ,
+        url: process.env.MAINNET_URL,
         blockNumber: 16521526
       }
     },
@@ -27,10 +27,22 @@ module.exports = {
     mainnet: {
       url: process.env.MAINNET_URL,
       accounts: [process.env.PRIVATE_KEY],
+    },
+    optimism: {
+      url: process.env.OPTIMISM_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    polygon: {
+      url: process.env.POLYGON_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    mumbai: {
+      url: process.env.MUMBAI_URL,
+      accounts: [process.env.PRIVATE_KEY],
     }
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey:  process.env.OPTIMISM_ETHERSCAN_API_KEY // process.env.ETHERSCAN_API_KEY //, process.env.POLYGONSCAN_API_KEY 
   },
   paths: {
     artifacts: "./src/artifacts",
