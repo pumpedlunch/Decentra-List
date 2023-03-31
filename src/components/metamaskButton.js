@@ -1,22 +1,5 @@
 import React from "react";
-
-const CHAINS = {
-  1: {
-    name: "Ethereum",
-  },
-  137: {
-    name: "Polygon",
-  },
-  10: {
-    name: "Optimism",
-  },
-  5: {
-    name: "Goerli",
-  },
-  80001: {
-    name: "Mumbai",
-  },
-};
+import CHAINS from "../utils/constants"
 
 export default function MetaMaskButton({
   connectedChainId,

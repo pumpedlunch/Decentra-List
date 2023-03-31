@@ -122,7 +122,7 @@ export default function CreateListModal({
                     ></input>
                     <p className="text-lg font-semibold">Bond</p>
                     <p className="text-sm">
-                      Amount added to UMA's final fee to calculate total bond
+                      Amount added to UMA&apos;s final fee to calculate total bond
                     </p>
                     {finalFeeArg ? (
                       <p className="text-sm">
