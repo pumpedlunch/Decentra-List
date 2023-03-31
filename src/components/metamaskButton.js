@@ -1,5 +1,5 @@
 import React from "react";
-import CHAINS from "../utils/constants"
+import {CHAINS} from "../utils/constants"
 
 export default function MetaMaskButton({
   connectedChainId,
