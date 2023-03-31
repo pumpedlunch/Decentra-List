@@ -1,0 +1,193 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "OracleInterfaces",
+  "sourceName": "@uma/core/contracts/oracle/implementation/Constants.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "Bridge",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ChildMessenger",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralWhitelist",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "FinancialContractsAdmin",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "GenericHandler",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "IdentifierWhitelist",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OptimisticOracle",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OptimisticOracleV2",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "Oracle",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OracleHub",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OracleSpoke",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "Registry",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SkinnyOptimisticOracle",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "Store",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x61036361003a600b82828239805160001a60731461002d57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600436106100f45760003560e01c80634f4a180b116100965780637608ea2f116100705780637608ea2f146102915780637db9743b146102b85780638adca47f146102df578063f24a534e1461030657600080fd5b80634f4a180b1461021c578063598dd097146102435780635fa2ef101461026a57600080fd5b80632a71e5b3116100d25780632a71e5b31461018057806342e90c33146101a75780634596ac9b146101ce578063473e7ccd146101f557600080fd5b8063079b6c63146100f95780631a0fbfb3146101325780631a4dbd1c14610159575b600080fd5b6101207f47656e6572696348616e646c657200000000000000000000000000000000000081565b60405190815260200160405180910390f35b6101207f4368696c644d657373656e67657200000000000000000000000000000000000081565b6101207f4f7074696d69737469634f7261636c650000000000000000000000000000000081565b6101207f46696e616e6369616c436f6e74726163747341646d696e00000000000000000081565b6101207f53746f726500000000000000000000000000000000000000000000000000000081565b6101207f536b696e6e794f7074696d69737469634f7261636c650000000000000000000081565b6101207f4f7074696d69737469634f7261636c655632000000000000000000000000000081565b6101207f4964656e74696669657257686974656c6973740000000000000000000000000081565b6101207f436f6c6c61746572616c57686974656c6973740000000000000000000000000081565b6101207f427269646765000000000000000000000000000000000000000000000000000081565b6101207f4f7261636c65487562000000000000000000000000000000000000000000000081565b6101207f526567697374727900000000000000000000000000000000000000000000000081565b6101207f4f7261636c6553706f6b6500000000000000000000000000000000000000000081565b6101207f4f7261636c6500000000000000000000000000000000000000000000000000008156fea26469706673582212200c311b78bece46cb0566e3f5ab3633f5cf28cbdd4750a2816d47cb62c37f298b64736f6c63430008110033",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600436106100f45760003560e01c80634f4a180b116100965780637608ea2f116100705780637608ea2f146102915780637db9743b146102b85780638adca47f146102df578063f24a534e1461030657600080fd5b80634f4a180b1461021c578063598dd097146102435780635fa2ef101461026a57600080fd5b80632a71e5b3116100d25780632a71e5b31461018057806342e90c33146101a75780634596ac9b146101ce578063473e7ccd146101f557600080fd5b8063079b6c63146100f95780631a0fbfb3146101325780631a4dbd1c14610159575b600080fd5b6101207f47656e6572696348616e646c657200000000000000000000000000000000000081565b60405190815260200160405180910390f35b6101207f4368696c644d657373656e67657200000000000000000000000000000000000081565b6101207f4f7074696d69737469634f7261636c650000000000000000000000000000000081565b6101207f46696e616e6369616c436f6e74726163747341646d696e00000000000000000081565b6101207f53746f726500000000000000000000000000000000000000000000000000000081565b6101207f536b696e6e794f7074696d69737469634f7261636c650000000000000000000081565b6101207f4f7074696d69737469634f7261636c655632000000000000000000000000000081565b6101207f4964656e74696669657257686974656c6973740000000000000000000000000081565b6101207f436f6c6c61746572616c57686974656c6973740000000000000000000000000081565b6101207f427269646765000000000000000000000000000000000000000000000000000081565b6101207f4f7261636c65487562000000000000000000000000000000000000000000000081565b6101207f526567697374727900000000000000000000000000000000000000000000000081565b6101207f4f7261636c6553706f6b6500000000000000000000000000000000000000000081565b6101207f4f7261636c6500000000000000000000000000000000000000000000000000008156fea26469706673582212200c311b78bece46cb0566e3f5ab3633f5cf28cbdd4750a2816d47cb62c37f298b64736f6c63430008110033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

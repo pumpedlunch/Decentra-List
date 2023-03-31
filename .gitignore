@@ -33,5 +33,4 @@ typechain-types
 
 #Hardhat files
 cache
-/src/artifacts
 
