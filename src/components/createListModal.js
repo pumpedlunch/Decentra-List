@@ -1,7 +1,7 @@
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment, useRef } from "react";
 
-export default function List({
+export default function CreateListModal({
   isOpen,
   closeModal,
   handleListCriteriaArgChange,
@@ -74,18 +74,18 @@ export default function List({
                       onChange={handleListCriteriaArgChange}
                     ></input>
                     <p className="text-lg font-semibold">Token Address</p>
-                    <p className="text-sm">Token used for bonds and rewards</p>
+                    <p className="text-sm">Token used for bonds and rewards.</p>
+                    <p className="text-sm">
+                      May be any UMA approved collateral, see links below:
+                    </p>
                     <div className="flex flex-row">
-                      <p className="text-sm">
-                        May be any UMA approved collateral:
-                      </p>
                       <a
-                        className="text-sm text-blue-500 ml-1"
+                        className="text-sm text-blue-500"
                         href="https://docs.umaproject.org/resources/approved-collateral-types"
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Mainnet
+                        Mainnets
                       </a>
                       <p className="text-sm ml-1"> | </p>
                       <a
@@ -95,6 +95,15 @@ export default function List({
                         rel="noreferrer"
                       >
                         Goerli
+                      </a>
+                      <p className="text-sm ml-1"> | </p>
+                      <a
+                        className="text-sm text-blue-500 ml-1"
+                        href="https://mumbai.polygonscan.com/address/0xa59E59112e3a0e96c97e2109004434C4125db80E#readContract#F1"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Mumbai
                       </a>
                     </div>
                     <input
@@ -113,17 +122,15 @@ export default function List({
                     ></input>
                     <p className="text-lg font-semibold">Bond</p>
                     <p className="text-sm">
-                      Amount added to UMA's final fee to calculate total bond
+                      Amount added to UMA&apos;s final fee to calculate total bond
                     </p>
-                    {finalFeeArg? (
+                    {finalFeeArg ? (
                       <p className="text-sm">
-                      Must be >= final fee. Final fee = {finalFeeArg}{" "}
-                      {symbolArg}
-                    </p>
+                        Must be {">="} final fee. Final fee = {finalFeeArg}{" "}
+                        {symbolArg}
+                      </p>
                     ) : (
-                      <p className="text-sm">
-                      Must be >= final fee.
-                    </p>
+                      <p className="text-sm">Must be {">="} final fee.</p>
                     )}
                     <input
                       placeholder="7.5"
