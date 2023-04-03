@@ -33,7 +33,6 @@
     "@typechain/hardhat": "^6.1.2",
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
-    "@uma/core": "2.38.0",
     "autoprefixer": "^10.4.14",
     "chai": "^4.2.0",
     "dotenv": "^16.0.3",
