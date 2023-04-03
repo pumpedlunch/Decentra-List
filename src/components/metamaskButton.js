@@ -1,13 +1,9 @@
 import React from "react";
-
-const NETWORKS = {
-  "0x1": "Ethereum",
-  "0x5": "Goerli",
-};
+import {CHAINS} from "../utils/constants"
 
 export default function MetaMaskButton({
-  chainId,
-  selectedNetwork,
+  connectedChainId,
+  selectedChainId,
   userAddress,
   connectMetamask,
   changeMetamaskChainId,
@@ -16,7 +12,7 @@ export default function MetaMaskButton({
     <>
       {userAddress ? (
         <>
-          {chainId === selectedNetwork ? (
+          {connectedChainId === selectedChainId ? (
             <div className="bg-slate-300 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right">
               <p className="">Connected</p>
               <p className="truncate px-2">{userAddress}</p>
@@ -26,7 +22,7 @@ export default function MetaMaskButton({
               className="bg-red-500 p-2 mt-2 rounded-md w-40 h-14 align-middle text-sm font-bold text-center float-right"
               onClick={() => changeMetamaskChainId()}
             >
-              Change to {NETWORKS[selectedNetwork]}
+              Change to {CHAINS[selectedChainId].name}
             </button>
           )}
         </>

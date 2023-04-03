@@ -4,10 +4,10 @@ const OOV2_ABI = require("../public/abis/OptimisticOracleV2.json");
 const OOV2Interface = new ethers.utils.Interface(OOV2_ABI);
 const WETH_ABI = require("../public/abis/WETH.json");
 require("dotenv").config();
-/* 
-// --- FOR GOERLI ---
 
-const OOV2_ADDRESS = "0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884"; //goerli
+// --- FOR TESTNETS ---
+
+const OOV2_ADDRESS = "0x60E6140330F8FE31e785190F39C1B5e5e833c2a9" //<mumbai "0xA5B9d8a0B0Fa04Ba71BDD68069661ED5C0848884"; //<goerli 
 
 const LIST_CRITERIA =
   "0x41646472657373657320636f6e73696465726564205768697465204861742062792074686520637269746572696120706f73746564206279204e6f6d616420686572653a2068747470733a2f2f747769747465722e636f6d2f6e6f6d616478797a5f2f7374617475732f31353535323933393635303439363330373232"; // "0x536d61727420636f6e747261637473207468617420656e666f726365207061796d656e74206f662063726561746f722073657420726f79616c74696573206f6e20616c6c204e4654207472616e736665727320616e6420696e7465726d65646961746564207472616e7366657273";
@@ -16,26 +16,26 @@ const TOKEN = "0x07865c6E87B9F70255377e024ace6630C1Eaa37F"; // <USDC Goerli  "0x
 const BOND_AMOUNT = ethers.utils.parseEther("0"); //ethers.utils.parseEther("0.35");
 const ADD_REWARD = ethers.utils.parseEther("0.0"); //100;
 const REMOVE_REWARD = ethers.utils.parseEther("10"); //50;
-const LIVENESS = 1; //8 * 60 * 60; */
+const LIVENESS = 1; //8 * 60 * 60;
 
 // --- FOR MAINNET ---
 
-const FINDER_ADDRESS = "0x40f941E48A552bF496B154Af6bf55725f18D77c3"; // <mainnet
-const OOV2_ADDRESS = "0xA0Ae6609447e57a42c51B50EAe921D701823FFAe"; // <mainnet
+// const FINDER_ADDRESS = "0x40f941E48A552bF496B154Af6bf55725f18D77c3"; // <mainnet
+// const OOV2_ADDRESS = "0xA0Ae6609447e57a42c51B50EAe921D701823FFAe"; // <mainnet
 
-const LIST_CRITERIA =
-  "0x4164647265737365732074686174206861766520766f74656420696e206f76657220383025206f6620554d412044564d20566f74657320746861742068617665207265736f6c76656420696e207468652070726576696f75732031383020646179732e" // Addresses that have voted in over 80% of UMA DVM Votes that have resolved in the previous 180 days." // converted to hex!
-const TITLE = "UMA Voting Allstars";
-const TOKEN = "0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828" // <Mainnet UMA "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; // <Mainnet WETH
-const BOND_AMOUNT = ethers.utils.parseEther("250");
-const ADD_REWARD = 0;
-const REMOVE_REWARD = ethers.utils.parseEther("4");
-const LIVENESS = 24 * 60 * 60;
+// const LIST_CRITERIA =
+//   "0x4164647265737365732074686174206861766520766f74656420696e206f76657220383025206f6620554d412044564d20566f74657320746861742068617665207265736f6c76656420696e207468652070726576696f75732031383020646179732e" // Addresses that have voted in over 80% of UMA DVM Votes that have resolved in the previous 180 days." // converted to hex!
+// const TITLE = "UMA Voting Allstars";
+// const TOKEN = "0x04Fa0d235C4abf4BcF4787aF4CF447DE572eF828" // <Mainnet UMA "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"; // <Mainnet WETH
+// const BOND_AMOUNT = ethers.utils.parseEther("250");
+// const ADD_REWARD = 0;
+// const REMOVE_REWARD = ethers.utils.parseEther("4");
+// const LIVENESS = 24 * 60 * 60;
 
-const GAS_SETTINGS = {
-  maxFeePerGas: ethers.utils.parseUnits("38", "gwei"),
-  maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
-};
+// const GAS_SETTINGS = {
+//   maxFeePerGas: ethers.utils.parseUnits("38", "gwei"),
+//   maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
+// };
 
 /* const ADDRESSES = [
   "0xe403c7faf2c682846aa7c221b0b0b9b3cffa1d28",

@@ -9,8 +9,10 @@
 - Getting Started:
     - Clone repo
     - Install dependencies: ```yarn install```
-    - Fill in variables in ```.env.sample``` and rename to ```.env```
-- Run local frontend: ```yarn start```
+    - Run ```yarn run hardhat compile``` to create contract artifacts
+    - Fill in dev variables in ```.env.sample``` and rename to ```.env```
+    - Fill in Next.js local variables in ```.env.local.sample``` and rename to ```.env.local```
+- Run local frontend: ```yarn dev``` & open [http://localhost:3000](http://localhost:3000) with your browser 
 - Test smart contracts on Hardhat network: ```yarn test```
 - Deploy contracts: 
     - update ```scripts/deploy.js``` variables for desired network
@@ -19,3 +21,5 @@
 ```
 yarn run hardhat run scripts/lists/UMAVotingAllstars.js --network mainnet
 ```
+
+This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).

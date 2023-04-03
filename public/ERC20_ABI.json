@@ -43,15 +43,6 @@
     "type": "function"
   },
   {
-    "constant": false,
-    "inputs": [{ "name": "wad", "type": "uint256" }],
-    "name": "withdraw",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "constant": true,
     "inputs": [],
     "name": "decimals",
@@ -91,15 +82,6 @@
     "type": "function"
   },
   {
-    "constant": false,
-    "inputs": [],
-    "name": "deposit",
-    "outputs": [],
-    "payable": true,
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
     "constant": true,
     "inputs": [
       { "name": "", "type": "address" },
@@ -110,44 +92,5 @@
     "payable": false,
     "stateMutability": "view",
     "type": "function"
-  },
-  { "payable": true, "stateMutability": "payable", "type": "fallback" },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "name": "src", "type": "address" },
-      { "indexed": true, "name": "guy", "type": "address" },
-      { "indexed": false, "name": "wad", "type": "uint256" }
-    ],
-    "name": "Approval",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "name": "src", "type": "address" },
-      { "indexed": true, "name": "dst", "type": "address" },
-      { "indexed": false, "name": "wad", "type": "uint256" }
-    ],
-    "name": "Transfer",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "name": "dst", "type": "address" },
-      { "indexed": false, "name": "wad", "type": "uint256" }
-    ],
-    "name": "Deposit",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "name": "src", "type": "address" },
-      { "indexed": false, "name": "wad", "type": "uint256" }
-    ],
-    "name": "Withdrawal",
-    "type": "event"
   }
 ]
